@@ -104,6 +104,8 @@ def create_app(config_class=Config) -> Flask:
 
     @app.route('/<path:filename>')
     def serve_static(filename):
+        if not filename or filename == '/':
+            return index()
         fp = os.path.join(Config.STATIC_DIR, filename)
         if os.path.exists(fp):
             return app.send_static_file(filename)
@@ -127,20 +129,7 @@ def create_app(config_class=Config) -> Flask:
         app.logger.error("Internal error:\n" + traceback.format_exc())
         return jsonify({'error': 'Internal server error'}), 500
 
-    # ===== Init =====
-    with app.app_context():
-        from app.database import init_db
-        os.makedirs(Config.ATTACHMENTS_DIR, exist_ok=True)
-        os.makedirs(Config.BACKUP_DIR, exist_ok=True)
-        os.makedirs(Config.VERSIONS_DIR, exist_ok=True)
-        src = os.path.join(Config.STATIC_DIR, '_browse.html')
-        dst = os.path.join(Config.ATTACHMENTS_DIR, '_browse.html')
-        if os.path.isfile(src) and not os.path.isfile(dst):
-            shutil.copy2(src, dst)
-        init_db()
-        app.logger.info("Database initialized.")
-
-    # ===== Register blueprints =====
+    # ===== Register blueprints FIRST (routes available even if DB fails) =====
     from app.routes.stats import stats_bp
     from app.routes.meters import meters_bp
     from app.routes.customers import customers_bp
@@ -158,6 +147,27 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(version_bp)
     app.register_blueprint(expense_bp)
     app.register_blueprint(charge_bp)
+
+    # Health check
+    @app.route('/health')
+    def health():
+        return jsonify({'status': 'ok'})
+
+    # ===== Init directories and DB (try, don't crash) =====
+    with app.app_context():
+        try:
+            os.makedirs(Config.ATTACHMENTS_DIR, exist_ok=True)
+            os.makedirs(Config.BACKUP_DIR, exist_ok=True)
+            os.makedirs(Config.VERSIONS_DIR, exist_ok=True)
+            src = os.path.join(Config.STATIC_DIR, '_browse.html')
+            dst = os.path.join(Config.ATTACHMENTS_DIR, '_browse.html')
+            if os.path.isfile(src) and not os.path.isfile(dst):
+                shutil.copy2(src, dst)
+            from app.database import init_db
+            init_db()
+            app.logger.info("Database initialized.")
+        except Exception as e:
+            app.logger.error(f"Init error (may be OK on first deploy): {e}")
 
     return app
 
