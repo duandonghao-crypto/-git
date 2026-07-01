@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-电费电量管理平台 v3 — PostgreSQL + Waitress
-Multi-user with session-based auth.
+Electricity Manager v3 — PostgreSQL, Gunicorn/Waitress, Multi-user.
 """
 import os, sys, argparse
 
@@ -20,15 +19,13 @@ if os.path.exists(env_path):
 from app import create_app
 from config import Config
 
-# Module-level app for gunicorn (Render requires this)
+# Module-level app for gunicorn (Render)
 app = create_app()
-
-# Also update port from env (Render sets PORT env var)
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='电费电量管理平台 v3')
+    parser = argparse.ArgumentParser(description='Electricity Manager v3')
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--init-db', action='store_true')
     parser.add_argument('--host', default=Config.HOST)
@@ -41,19 +38,18 @@ def main():
         print("Database initialized.")
         return
 
-    app = create_app()
     print(f"\n{'='*50}")
-    print(f"  电费电量管理平台 v3 (PostgreSQL)")
+    print(f"  Electricity Manager v3")
     print(f"  http://{args.host}:{args.port}")
-        print(f"  DB: {Config.db_url()[:50]}...")
-        print(f"{'='*50}\n")
+    print(f"  DB: {Config.db_url()[:50]}...")
+    print(f"{'='*50}\n")
 
     try:
         from waitress import serve
-        print("Using Waitress (production server)")
+        print("Using Waitress")
         serve(app, host=args.host, port=args.port, threads=8)
     except ImportError:
-        print("Waitress not found, using Flask dev server")
+        print("Using Flask dev server")
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 
