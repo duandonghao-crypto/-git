@@ -20,7 +20,22 @@ from app import create_app
 from config import Config
 
 # Module-level app for gunicorn (Render)
-app = create_app()
+try:
+    app = create_app()
+    print(f"App created: {len(list(app.url_map.iter_rules()))} routes", flush=True)
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+    # Minimal fallback app so gunicorn can start and we can debug
+    from flask import Flask
+    app = Flask(__name__)
+    @app.route('/')
+    def fallback():
+        return f"App failed to start: {e}"
+    @app.route('/health')
+    def fallback_health():
+        return "ok"
+
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
 
 
