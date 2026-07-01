@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>电费支出上传</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;color:#333;font-size:14px}
+.main{display:flex;gap:12px;padding:12px 14px;height:100vh;overflow:hidden}
+.left{flex:1;min-width:0;overflow-y:auto;padding-right:4px}
+.right{width:420px;flex-shrink:0;display:flex;flex-direction:column}
+.section{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);margin-bottom:10px}
+.section-hd{padding:10px 16px;font-size:14px;font-weight:700;color:#1a5276;border-bottom:1px solid #eee}
+.section-body{padding:10px 16px}
+.fg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:3px 0}
+.fg label{font-size:13px;font-weight:600;color:#555;white-space:nowrap;min-width:36px}
+.fg input,.fg select{padding:5px 8px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;outline:none;font-family:inherit}
+.fg input:focus{border-color:#2980b9;box-shadow:0 0 0 2px rgba(41,128,185,0.15)}
+.btn{display:inline-block;padding:6px 14px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;margin:2px}
+.btn:hover{opacity:0.9}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-p{background:#2980b9;color:#fff}
+.btn-s{background:#27ae60;color:#fff}
+.btn-w{background:#f39c12;color:#fff}
+.btn-d{background:#e74c3c;color:#fff}
+.btn-o{border:1px solid #d0d0d0;background:#fff;color:#333}
+.log-box{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);flex:1;display:flex;flex-direction:column;min-height:0}
+.log-hd{padding:10px 16px;font-size:14px;font-weight:700;color:#1a5276;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+#logArea{flex:1;background:#1e1e1e;color:#d4d4d4;font-family:Consolas,monospace;font-size:12px;padding:8px 12px;overflow-y:auto;border-radius:0 0 8px 8px}
+.log-line{padding:1px 0;word-break:break-all;line-height:1.5}
+.log-ok{color:#8bc34a}.log-err{color:#f44336}.log-warn{color:#ff9800}.log-info{color:#bdbdbd}
+</style>
+</head>
+<body>
+<div class="main">
+<div class="left">
+<div class="section" style="background:#e8f0f8"><div class="section-hd">用户</div><div class="section-body">
+<div class="fg"><label>当前:</label><strong id="currentUserName" style="color:#2980b9">未登录</strong>
+<button class="btn btn-o btn-sm" onclick="showLogin()">切换</button>
+<span style="font-size:11px;color:#888">选名字即可，无需密码</span></div>
+</div></div>
+<div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:999;justify-content:center;align-items:center">
+<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+<h3 style="margin-bottom:16px">选择用户</h3>
+<div id="userList" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+<div class="fg"><input type="text" id="newUserName" placeholder="或输入新名字" style="flex:1" onkeydown="if(event.key==='Enter')doLogin()"><button class="btn btn-p btn-sm" onclick="doLogin()">登录</button></div>
+<button class="btn btn-o btn-sm" onclick="document.getElementById('loginModal').style.display='none'" style="margin-top:8px">取消</button>
+</div></div>
+<div class="section"><div class="section-hd">邮箱配置</div><div class="section-body">
+<div class="fg"><label>服务器:</label><input type="text" id="cfgServer" value="imap.88.com" style="width:150px"><label>端口:</label><input type="number" id="cfgPort" value="993" style="width:65px"><label>邮箱:</label><input type="text" id="cfgEmail" value="" placeholder="your-email@88.com" style="width:190px"><label>密码:</label><input type="password" id="cfgPassword" value="" placeholder="邮箱密码" style="width:130px"></div>
+<div class="fg"><label>日期从:</label><input type="date" id="cfgStart" value=""><label>到:</label><input type="date" id="cfgEnd" value=""><span style="font-size:11px;color:#888">留空则搜索全部邮件</span></div>
+</div></div>
+<div class="section"><div class="section-hd">配置</div><div class="section-body">
+<div class="fg"><label>映射文件:</label><input type="text" id="cfgMapFile" value="../简称对应表.xlsx" style="flex:1;min-width:180px"><input type="file" id="cfgMapPicker" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'cfgMapFile')"><button class="btn btn-o btn-sm" onclick="document.getElementById('cfgMapPicker').click()">浏览</button><span style="font-size:11px;color:#888">A列户号 B列简称 C列公司</span></div>
+</div></div>
+<div class="section"><div class="section-hd">邮箱操作</div><div class="section-body">
+<div class="fg" style="gap:4px">
+<button class="btn btn-p" onclick="doApi('scan')">1. 扫描邮箱</button>
+<button class="btn btn-p" onclick="doApi('download_bills')">2. 下载电费单</button>
+<button class="btn btn-p" onclick="doApi('download_invoices')">3. 获取发票链接</button>
+<button class="btn btn-w" onclick="document.getElementById('invoiceUpload').click()">4. 上传发票</button>
+<input type="file" id="invoiceUpload" accept=".pdf" multiple style="display:none" onchange="uploadInvoices(this)">
+</div></div></div>
+<div class="section"><div class="section-hd">处理操作</div><div class="section-body">
+<div class="fg" style="gap:4px">
+<button class="btn btn-s" onclick="doApi('dedup')">5. 去重</button>
+<button class="btn btn-s" onclick="doApi('add_shortname')">6. 添加简称</button>
+<button class="btn btn-s" onclick="doApi('extract')">7. 提取数据</button>
+<button class="btn btn-s" onclick="doApi('classify')">8. 分类文件</button>
+<button class="btn btn-s" onclick="doApi('upload')">9. 上传到库</button>
+</div></div></div>
+<div class="section"><div class="section-hd">其他</div><div class="section-body">
+<div class="fg" style="gap:4px">
+<button class="btn btn-p" onclick="document.getElementById('fileUpload').click()">本地上传Excel</button>
+<input type="file" id="fileUpload" accept=".xlsx" style="display:none" onchange="uploadExcel(this)">
+<button class="btn btn-s" onclick="doApi('pack')">打包下载</button>
+<button class="btn btn-d" onclick="doApi('clear')">清空附件</button>
+</div></div></div>
+</div>
+<div class="right">
+<div class="log-box">
+<div class="log-hd"><span>日志</span><button class="btn btn-o btn-sm" onclick="E('logArea').innerHTML=''">清空</button></div>
+<div id="logArea"></div>
+</div></div>
+</div>
+
+<script>
+var API_URL='/api/expense_';
+
+// 文件夹选择
+function pickFolder(input, targetId) {
+  var files = input.files;
+  if (files.length > 0) {
+    // webkitRelativePath gives the relative path from the selected folder
+    var path = files[0].webkitRelativePath;
+    var folderName = path.split('/')[0];
+    // For local files, the input path might just be the folder name
+    // Show the folder name, user can edit to full path
+    var el = document.getElementById(targetId);
+    el.value = folderName;
+    el.style.background = '#e8f5e9';
+    setTimeout(function(){ el.style.background = ''; }, 2000);
+  }
+}
+// 文件选择
+function pickFile(input, targetId) {
+  if (input.files.length > 0) {
+    var f = input.files[0];
+    var el = document.getElementById(targetId);
+    el.value = f.name;
+    el.style.background = '#e8f5e9';
+    setTimeout(function(){ el.style.background = ''; }, 2000);
+  }
+}
+function E(id){return document.getElementById(id);}
+
+// User login
+function getWorkDir(){var u=document.getElementById('currentUserName').textContent;return u&&u!=='未登录'?'data/attachments/'+u:'data/attachments';}
+
+function showLogin(){
+  fetch('/api/auth/users').then(function(r){return r.json();}).then(function(users){
+    var h='';users.forEach(function(u){h+='<div style="padding:6px;cursor:pointer;border-radius:4px" onclick="selectUser(\''+u.name+'\')" onmouseover="this.style.background=\'#e8f0f8\'" onmouseout="this.style.background=\'\'">'+u.name+'</div>';});
+    E('userList').innerHTML=h||'<div style="color:#999">暂无用户</div>';
+    E('loginModal').style.display='flex';
+  });
+}
+
+function selectUser(name){
+  E('newUserName').value=name;doLogin();
+}
+
+function doLogin(){
+  var name=E('newUserName').value.trim();if(!name)return;
+  fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.success){E('currentUserName').textContent=d.user_name;E('loginModal').style.display='none';log('已登录: '+d.user_name,'ok');}
+    else{log('登录失败: '+d.message,'err');}
+  });
+}
+
+// Check login on load
+fetch('/api/auth/me').then(function(r){return r.json();}).then(function(d){
+  if(d.user_name){E('currentUserName').textContent=d.user_name;}
+});
+
+function now(){var d=new Date();return d.toLocaleTimeString('zh-CN',{hour12:false});}
+
+function log(msg,cls){cls=cls||'info';var a=E('logArea');var div=document.createElement('div');div.className='log-line log-'+cls;div.textContent='['+now()+'] '+msg;a.appendChild(div);a.scrollTop=a.scrollHeight;}
+
+function getCfg(){
+  var c={
+    output_dir: getWorkDir(),
+    mapping_path: E('cfgMapFile').value.trim() || '../简称对应表.xlsx',
+    email:     E('cfgEmail').value.trim(),
+    password:  E('cfgPassword').value,
+    server:    E('cfgServer').value.trim() || 'imap.88.com',
+    port:      parseInt(E('cfgPort').value) || 993,
+    start_date: E('cfgStart').value,
+    end_date:   E('cfgEnd').value
+  };
+  return c;
+}
+
+function doApi(action){
+  if(action==='clear'){var pw=prompt('请输入操作密码：');if(pw!=='duandonghao'){log('密码错误，操作已取消','err');return;}}
+  var cfg=getCfg();
+  // Email actions: include full config
+  if(action==='scan'||action==='download_bills'||action==='download_invoices'){
+    var body=cfg;
+  } else if(action==='add_shortname'){
+    body={input_dir:cfg.output_dir, mapping_path:cfg.mapping_path};
+  } else if(action==='classify'){
+    body={input_dir:cfg.output_dir, mapping_path:cfg.mapping_path};
+  } else if(action==='dedup'){
+    body={input_dir:cfg.output_dir};
+  } else if(action==='upload'){
+    body={output_dir:cfg.output_dir};
+  } else if(action==='rename_invoices'||action==='extract'||action==='clear'){
+    body={output_dir:cfg.output_dir, mapping_path:cfg.mapping_path};
+  } else {
+    body={output_dir:cfg.output_dir};
+  }
+log('执行: '+action+'...','info');
+if(action==='pack'){window.open('/attachments/_browse.html');return;}
+fetch(API_URL+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(300000)}).then(function(r){return r.json();}).then(function(d){if(d.logs)d.logs.forEach(function(l){var c='info';if(l.indexOf('错误')>=0)c='err';else if(l.indexOf('✓')>=0||l.indexOf('完成')>=0||l.indexOf('成功')>=0)c='ok';log(l,c);});var isInvoiceAction = (action==='download_invoices');
+if(d.html_url && isInvoiceAction){log('发票下载页面已生成，正在打开...','ok');window.open(d.html_url,'invoice_dl');}else if(d.html_url && !isInvoiceAction){log('页面已生成: '+d.html_url,'info');}log(action+' '+(d.success?'成功':'失败')+(d.dup>0?' (跳过'+d.dup+'条重复)':''),d.success?'ok':'err');}).catch(function(e){log(action+' 失败: '+e.message,'err');});}
+
+log('电费支出给国网 v10 (多用户)');
+
+function uploadInvoices(input){
+  var files=input.files;
+  if(!files.length)return;
+  log('上传 '+files.length+' 个发票PDF...','info');
+  var readers=[],done=0;
+  var allData=[];
+  function processOne(i){
+    if(i>=files.length){doUpload();return;}
+    var reader=new FileReader();
+    reader.onload=function(e){
+      allData.push({name:files[i].name,data:e.target.result.split(',')[1]});
+      done++;log('读取: '+files[i].name+' ('+done+'/'+files.length+')','info');
+      processOne(i+1);
+    };
+    reader.readAsDataURL(files[i]);
+  }
+  function doUpload(){
+    var cfg=getCfg();
+    log('正在上传并重命名...','info');
+    fetch(API_URL+'upload_invoices',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({files:allData,output_dir:cfg.output_dir})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.logs)d.logs.forEach(function(l){var c='info';if(l.indexOf('错误')>=0)c='err';else if(l.indexOf('✓')>=0||l.indexOf('完成')>=0||l.indexOf('成功')>=0)c='ok';log(l,c);});
+      log('发票导入 '+(d.success?'成功':'失败')+' (共'+d.count+'个)',d.success?'ok':'err');
+    }).catch(function(e){log('发票导入失败: '+e.message,'err');});
+  }
+  processOne(0);
+  input.value='';
+}
+
+function uploadExcel(input){
+  var f=input.files[0];
+  if(!f)return;
+  log('读取文件: '+f.name+' ('+(f.size/1024).toFixed(1)+' KB)...','info');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var b64=e.target.result.split(',')[1];
+    log('上传中...','info');
+    fetch(API_URL+'upload_file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.name,data:b64})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.logs)d.logs.forEach(function(l){var c='info';if(l.indexOf('错误')>=0)c='err';else if(l.indexOf('完成')>=0||l.indexOf('成功')>=0)c='ok';log(l,c);});
+      log('上传 '+(d.success?'成功':'失败')+(d.dup>0?' (跳过'+d.dup+'条重复)':'')+(d.new>0?' (新增'+d.new+'条)':''),d.success?'ok':'err');
+    }).catch(function(e){log('上传失败: '+e.message,'err');});
+  };
+  reader.readAsDataURL(f);
+  input.value='';
+}
+</script>
+</body>
+</html>

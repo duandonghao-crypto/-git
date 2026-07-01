@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>选择文件下载</title>
+<style>
+body{font-family:"Microsoft YaHei",sans-serif;max-width:800px;margin:20px auto;padding:0 20px;background:#f0f2f5}
+h1{color:#333;font-size:18px}
+.toolbar{padding:10px 0;display:flex;gap:8px;align-items:center}
+.toolbar button{display:inline-block;padding:8px 20px;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-sel{background:#2980b9;color:#fff}
+.btn-dl{background:#27ae60;color:#fff;font-size:16px;padding:12px 24px}
+.file-list{background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.item{display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #f0f0f0;gap:10px}
+.item:hover{background:#f8f9fa}
+.item input[type=checkbox]{width:18px;height:18px}
+.item .name{flex:1;font-size:14px;color:#333;word-break:break-all}
+.item .size{font-size:12px;color:#999;white-space:nowrap}
+.item .btn-sm{border:1px solid #ddd;background:#fff;padding:3px 10px;font-size:12px;border-radius:4px;cursor:pointer;text-decoration:none;color:#2980b9}
+.count{font-size:13px;color:#666;margin:8px 0}
+.status{font-size:13px;color:#27ae60;margin-left:10px}
+</style></head><body>
+<h1>工作文件夹</h1>
+<div class="toolbar">
+<button class="btn-sel" onclick="toggleAll()">全选/取消</button>
+<button class="btn-dl" onclick="downloadSelected()">下载选中文件</button>
+<span class="status" id="status"></span>
+</div>
+<div class="count" id="info"></div>
+<div class="file-list" id="list"></div>
+<script>
+function loadFiles(files){
+  var h='';
+  var dirs={};
+  files.forEach(function(f){
+    var parts=f.name.split('/');
+    if(parts.length>1){
+      var d=parts[0];
+      if(!dirs[d])dirs[d]=[];
+      dirs[d].push({name:f.name,size:f.size});
+    }else{
+      h+='<div class="item"><input type="checkbox" class="ck" data-name="'+esc(f.name)+'" checked><span class="name">'+esc(f.name)+'</span><span class="size">'+(f.size/1024).toFixed(1)+' KB</span><a class="btn-sm" href="/attachments/'+f.name.replace(/\\/g,'/')+'" download>下载</a></div>';
+    }
+  });
+  for(var d in dirs){
+    h+='<div style="padding:6px 16px;background:#f8fafc;font-weight:600;color:#1a5276;font-size:13px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px"><input type="checkbox" class="dir-ck" onchange="toggleDir(this,\''+esc(d)+'\')" checked style="width:16px;height:16px"><span>&#x1f4c1; '+esc(d)+'</span></div>';
+    dirs[d].forEach(function(f){
+      var short=f.name.split('/')[1];
+      h+='<div class="item"><input type="checkbox" class="ck" data-dir="'+esc(d)+'" data-name="'+esc(f.name)+'" checked><span class="name" style="padding-left:16px">'+esc(short)+'</span><span class="size">'+(f.size/1024).toFixed(1)+' KB</span><a class="btn-sm" href="/attachments/'+f.name.replace(/\\/g,'/')+'" download>下载</a></div>';
+    });
+  }
+  document.getElementById('list').innerHTML=h||'<div style="padding:20px;text-align:center;color:#999">文件夹为空</div>';
+  updateCount();
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function toggleAll(){
+  var cks=document.querySelectorAll('.ck');
+  var all=document.querySelectorAll('.ck:checked').length===cks.length;
+  cks.forEach(function(c){c.checked=!all;});
+  document.querySelectorAll('.dir-ck').forEach(function(c){c.checked=!all;});
+  updateCount();
+}
+function toggleDir(cb,dir){
+  document.querySelectorAll('.ck[data-dir="'+dir+'"]').forEach(function(c){c.checked=cb.checked;});
+  updateCount();
+}
+
+document.getElementById('list').addEventListener('change',updateCount);
+function updateCount(){
+  var cnt=document.querySelectorAll('.ck:checked').length;
+  document.getElementById('info').textContent='选中 '+cnt+' 个文件';
+}
+
+function downloadSelected(){
+  var names=[];
+  document.querySelectorAll('.ck:checked').forEach(function(c){names.push(c.dataset.name);});
+  if(names.length===0){document.getElementById('status').textContent='请选择文件';return;}
+  document.getElementById('status').textContent='打包中...';
+  fetch('/api/expense_pack_selected',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({files:names})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.success){
+      document.getElementById('status').textContent='完成！正在下载...';
+      window.open('/attachments/_selected.zip');
+    }else{
+      document.getElementById('status').textContent='失败';
+    }
+  }).catch(function(e){
+    document.getElementById('status').textContent='失败: '+e.message;
+  });
+}
+
+fetch('/api/expense_list_files').then(function(r){return r.json();}).then(function(d){
+  var files = (d.files||[]).filter(function(f){return f.name!=='_browse.html';});
+  if(files.length===0){document.getElementById('list').innerHTML='<div style="padding:20px;text-align:center;color:#999">文件夹为空</div>';}
+  else loadFiles(files);
+});
+</script>
+</body></html>

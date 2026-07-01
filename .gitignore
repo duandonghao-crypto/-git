@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+app.log
+data/electricity.db
+data/attachments/*
+data/backups/*
+!data/attachments/.gitkeep
+!data/backups/.gitkeep
+data_clean.sql
+schema_clean.sql
+*.bak

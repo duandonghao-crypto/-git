@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电费电量管理看板</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; }
+.header {
+  background: linear-gradient(135deg, #0d2137 0%, #1a5276 40%, #2980b9 100%);
+  color:#fff;padding:20px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;
+}
+.header h1 { font-size:22px;font-weight:600;letter-spacing:1px; }
+.header .subtitle { font-size:13px;opacity:0.75;margin-top:2px; }
+.header .header-meta { text-align:right;font-size:13px;line-height:1.8; }
+.header .header-meta strong { font-weight:600; }
+.container { max-width:1440px;margin:0 auto;padding:18px 20px; }
+.cards { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px; }
+.card { background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);position:relative;overflow:hidden;transition:box-shadow .2s,transform .15s; }
+.card:hover { box-shadow:0 3px 12px rgba(0,0,0,0.1);transform:translateY(-1px); }
+.card .label { font-size:13px;color:#888;margin-bottom:4px; }
+.card .value { font-size:26px;font-weight:700; }
+.card .sub { font-size:12px;color:#999;margin-top:3px; }
+.card .icon-badge { position:absolute;top:14px;right:16px;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;opacity:0.7; }
+.card.fee { border-top:3px solid #e74c3c; }
+.card.fee .icon-badge { background:#e74c3c; }
+.card.income { border-top:3px solid #27ae60; }
+.card.income .icon-badge { background:#27ae60; }
+.card.diff { border-top:3px solid #3498db; }
+.card.diff .icon-badge { background:#3498db; }
+.card.debt { border-top:3px solid #f39c12; }
+.card.debt .icon-badge { background:#f39c12; }
+.tab-bar { background:#fff;border-radius:10px;padding:0 6px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;overflow-x:auto;margin-bottom:16px; }
+.tab-btn { padding:14px 20px;border:none;background:none;font-size:14px;cursor:pointer;color:#666;white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s;font-weight:500;font-family:inherit; }
+.tab-btn:hover { color:#1a5276;background:#f8f9fa; }
+.tab-btn.active { color:#1a5276;border-bottom-color:#2980b9;font-weight:600; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+.panel-toolbar { background:#fff;border-radius:10px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px; }
+.panel-toolbar input,.panel-toolbar select { padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s; }
+.panel-toolbar input:focus,.panel-toolbar select:focus { border-color:#2980b9; }
+.panel-toolbar input { flex:1;min-width:180px; }
+.btn { padding:8px 18px;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:500;font-family:inherit;transition:all .2s;white-space:nowrap; }
+.btn-primary { background:#2980b9;color:#fff; }
+.btn-primary:hover { background:#1a5276; }
+.btn-success { background:#27ae60;color:#fff; }
+.btn-success:hover { background:#1e8449; }
+.btn-danger { background:#e74c3c;color:#fff; }
+.btn-danger:hover { background:#c0392b; }
+.btn-warning { background:#f39c12;color:#fff; }
+.btn-warning:hover { background:#d68910; }
+.btn-outline { background:#fff;color:#2980b9;border:1px solid #2980b9; }
+.btn-outline:hover { background:#eaf2f8; }
+.btn-sm { padding:6px 12px;font-size:12px; }
+.btn-xs { padding:4px 10px;font-size:11px; }
+.result-area { background:#fff;border-radius:10px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:20px; }
+.result-area h3 { font-size:16px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #eee; }
+.result-info { font-size:13px;color:#888;margin-bottom:10px; }
+.data-table { width:100%;border-collapse:collapse;font-size:13px; }
+.data-table thead th { background:#f8f9fa;padding:10px 8px;text-align:left;border-bottom:2px solid #dee2e6;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:1; }
+.data-table td { padding:9px 8px;border-bottom:1px solid #eee;vertical-align:middle; }
+.data-table tbody tr:hover td { background:#eef5fb;cursor:pointer; }
+.data-table .text-right { text-align:right; }
+.data-table .text-center { text-align:center; }
+.data-table .text-right.money { font-variant-numeric:tabular-nums;font-weight:500; }
+.table-wrap { overflow-x:auto; }
+.tag { display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:500;white-space:nowrap; }
+.tag-green { background:#e8f8e8;color:#1e8449; }
+.tag-red { background:#fde8e8;color:#c0392b; }
+.tag-yellow { background:#fef5e7;color:#d68910; }
+.tag-blue { background:#e8f0f8;color:#2980b9; }
+.tag-gray { background:#f0f0f0;color:#666; }
+.level-danger { background:#fde8e8!important; }
+.level-danger td:first-child { border-left:3px solid #e74c3c; }
+.level-warning { background:#fef5e7!important; }
+.level-warning td:first-child { border-left:3px solid #f39c12; }
+.empty { text-align:center;padding:50px 20px;color:#bbb;font-size:14px; }
+.loading { text-align:center;padding:50px;color:#888; }
+.spin { display:inline-block;width:20px;height:20px;border:2px solid #ddd;border-top-color:#2980b9;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px;vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.modal-overlay { display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:2000;justify-content:center;align-items:center;padding:20px; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff;border-radius:12px;padding:28px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 10px 50px rgba(0,0,0,0.25);position:relative;animation:modalIn .2s ease; }
+@keyframes modalIn { from{opacity:0;transform:translateY(-20px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+.modal h3 { font-size:18px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid #eee; }
+.modal-close { position:absolute;top:14px;right:20px;background:none;border:none;font-size:26px;cursor:pointer;color:#aaa;line-height:1;transition:color .2s; }
+.modal-close:hover { color:#333; }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block;font-size:13px;font-weight:500;color:#444;margin-bottom:4px; }
+.form-group input,.form-group select,.form-group textarea { width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s; }
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus { border-color:#2980b9; }
+.form-group textarea { resize:vertical;min-height:60px; }
+.form-row { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+.form-actions { display:flex;gap:10px;justify-content:flex-end;margin-top:20px; }
+.receivable-item { display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;gap:12px;flex-wrap:wrap; }
+.receivable-item:hover { background:#f8f9fa; }
+.receivable-item .meta { flex:1;min-width:140px; }
+.receivable-item .amount { text-align:left;white-space:nowrap;font-size:15px;font-weight:600; }
+.receivable-item .actions { display:flex;gap:6px; }
+
+/* ===== TAB2: Customers & Meters ===== */
+.c-split { display:flex;gap:16px;min-height:480px; }
+.c-left-pane { width:38%;min-width:240px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden; }
+.c-right-pane { flex:1;min-width:0;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06);display:flex;flex-direction:column;overflow:hidden; }
+.pane-header { padding:12px 16px;border-bottom:1px solid #eee;font-size:14px;font-weight:600;color:#1a5276;background:#f8fafc;display:flex;justify-content:space-between;align-items:center; }
+.pane-count { font-weight:400;font-size:12px;color:#888; }
+.pane-search { margin:10px 12px;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s; }
+.pane-search:focus { border-color:#2980b9; }
+.pane-body { flex:1;overflow-y:auto;padding:4px 0;max-height:480px; }
+.pane-footer { padding:10px 16px;border-top:1px solid #eee;background:#f8fafc; }
+.c-customer-item { padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .15s; }
+.c-customer-item:hover { background:#f5f8fb; }
+.c-customer-item.selected { background:#dce8f5;border-left:3px solid #2980b9;padding-left:11px; }
+.c-customer-item .ci-top { display:flex;justify-content:space-between;align-items:center; }
+.c-customer-item .ci-name { font-size:14px;font-weight:600;color:#1a5276; }
+.c-customer-item .badge { display:inline-block;background:#3498db;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;min-width:18px;text-align:center; }
+.c-meter-item { padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .15s; }
+.c-meter-item:hover { background:#f5f8fb; }
+.c-meter-item.selected { background:#dce8f5;border-left:3px solid #2980b9;padding-left:11px; }
+.c-meter-item .mi-top { display:flex;justify-content:space-between;align-items:center; }
+.c-meter-item .mi-id { font-size:14px;font-weight:600;color:#1a5276; }
+.c-meter-item .mi-loc { font-size:12px;color:#999;margin-top:1px; }
+.c-meter-item .badge { display:inline-block;background:#3498db;color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;min-width:18px;text-align:center; }
+
+.toast-container { position:fixed;top:20px;right:20px;z-index:9999;pointer-events:none; }
+.toast { pointer-events:auto;padding:12px 20px;border-radius:8px;font-size:14px;margin-bottom:8px;box-shadow:0 4px 16px rgba(0,0,0,0.15);animation:toastIn .3s ease;display:flex;align-items:center;gap:8px; }
+.toast-success { background:#27ae60;color:#fff; }
+.toast-error { background:#e74c3c;color:#fff; }
+.toast-info { background:#2980b9;color:#fff; }
+@keyframes toastIn { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+@media (max-width:900px){ .cards{grid-template-columns:repeat(2,1fr)} .c-split{flex-direction:column} .c-left-pane{width:100%;min-width:0;max-height:300px} .c-right-pane{max-height:300px} }
+@media (max-width:600px){ .cards{grid-template-columns:1fr 1fr;gap:10px} .card{padding:14px} .card .value{font-size:20px} .header{padding:14px 16px} .header h1{font-size:18px} .container{padding:12px} .form-row{grid-template-columns:1fr} .panel-toolbar{flex-direction:column;align-items:stretch} .panel-toolbar input{min-width:0} .tab-btn{padding:12px 14px;font-size:13px} .modal{padding:20px} .receivable-item{flex-direction:column;align-items:stretch} .receivable-item .amount{text-align:left} }
+
+.tab-iframe { width:100%; height:calc(100vh - 220px); border:none; border-radius:8px; background:#fff; }
+</style>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div id="loginBar" style="background:#0d2137;color:#fff;padding:6px 18px;display:flex;gap:12px;align-items:center;font-size:13px">
+<span>👤 <strong id="currentUserName" style="color:#8bc34a">未登录</strong></span>
+<button onclick="showLogin()" style="background:#2980b9;color:#fff;border:none;padding:3px 12px;border-radius:4px;cursor:pointer;font-size:12px">切换用户</button>
+<a href="/电费支出给国网.html" style="color:#bbb;margin-left:auto;font-size:12px;text-decoration:none">电费支出 →</a>
+<a href="/收费录入.html" style="color:#bbb;font-size:12px;text-decoration:none">收费录入 →</a>
+</div>
+<div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;justify-content:center;align-items:center">
+<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+<h3 style="margin-bottom:16px">选择用户</h3>
+<div id="userList" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+<div style="display:flex;gap:8px"><input type="text" id="newUserName" placeholder="或输入新名字" style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:6px" onkeydown="if(event.key==='Enter')doLogin()"><button onclick="doLogin()" style="background:#2980b9;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">登录</button></div>
+<button onclick="document.getElementById('loginModal').style.display='none'" style="margin-top:8px;border:1px solid #ddd;background:#fff;padding:4px 12px;border-radius:4px;cursor:pointer">取消</button>
+</div></div>
+<div class="header"><div><h1>⚡ 电费电量管理</h1><div class="subtitle">企业用电数据看板 · v4 · 全功能版</div></div><div class="header-meta"><div>户号: <strong id="meterCount">-</strong></div><div>数据范围: <strong id="dateRange">-</strong></div></div></div>
+<div class="container">
+<div class="cards">
+<div class="card fee"><div class="icon-badge">↓</div><div class="label">电费支出（付国网）</div><div class="value" id="cardFeeExpense">-</div><div class="sub" id="cardFeeExpenseCnt"></div></div>
+<div class="card income"><div class="icon-badge">↑</div><div class="label">电费收入（收租户）</div><div class="value" id="cardFeeIncome">-</div><div class="sub" id="cardFeeIncomeCnt"></div></div>
+<div class="card diff"><div class="icon-badge">±</div><div class="label">收支差额</div><div class="value" id="cardDiff">-</div><div class="sub" id="cardDiffPct"></div></div>
+<div class="card debt"><div class="icon-badge">!</div><div class="label">应收账款（待收）</div><div class="value" id="cardReceivable">-</div><div class="sub" id="cardReceivableCnt"></div></div>
+</div>
+
+<div class="tab-bar">
+<button class="tab-btn" data-tab="tab-charge">📝 转供电企业抄表录入</button>
+<button class="tab-btn" data-tab="tab-expense">⚡ 电费支出版</button>
+<button class="tab-btn" data-tab="tab-search">🔍 流水查询</button>
+<button class="tab-btn" data-tab="tab-customers">🏢 客户与户号</button>
+<button class="tab-btn" data-tab="tab-receivables">💰 应收账款</button>
+</div>
+
+<!-- TAB 1 -->
+<!-- TAB 0: 收费录入 -->
+<div class="tab-panel active" id="tab-charge">
+  <iframe class="tab-iframe" src="收费录入.html" id="chargeFrame"></iframe>
+</div>
+
+<!-- TAB 电费支出给国网 -->
+<div class="tab-panel" id="tab-expense">
+  <iframe class="tab-iframe" src="电费支出给国网.html" id="expenseFrame"></iframe>
+</div>
+
+<div class="tab-panel" id="tab-search">
+<div class="panel-toolbar">
+<input type="text" id="searchInput" placeholder="输入户号、地点或企业名搜索...">
+<select id="monthFilter"><option value="">全部月份</option></select>
+<select id="categoryFilter"><option value="">全部类型</option><option value="电费支">电费支出</option><option value="电费收">电费收入</option><option value="电量支">电量支出</option><option value="电量收">电量收入</option></select>
+<button class="btn btn-primary" onclick="doSearch()">搜索</button>
+</div>
+<div class="result-area" id="searchResult">
+<h3>查询结果</h3>
+<div id="searchResultInfo" class="result-info"></div>
+<div id="searchResultContent"><div class="empty">请输入搜索条件后查询</div></div>
+</div>
+</div>
+
+<!-- TAB 2: 客户与户号（恢复版 - 2026-05-02） -->
+<div class="tab-panel" id="tab-customers">
+  <!-- 左右分栏：左侧企业列表 ~40%，右侧企业详情 ~60% -->
+  <div class="c-split">
+    <div class="c-left-pane" style="width:38%;min-width:240px;">
+      <div class="pane-header"><span>🏢 用电企业</span><span id="cCustomerCount" class="pane-count"></span></div>
+      <input class="pane-search" id="cCustomerSearch" type="text" placeholder="搜索企业名称..." onkeyup="cFilterCustomers()">
+      <div class="pane-body" id="cCustomerList"></div>
+      <div class="pane-footer"><button class="btn btn-success btn-sm" onclick="openCustomerAdd2()" style="width:100%;">+ 新建企业</button></div>
+    </div>
+    <!-- 右侧：企业详情 -->
+    <div class="c-right-pane" style="flex:1;min-width:0;">
+      <div id="cDetailPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;">
+        <div class="empty">👈 点击左侧企业查看详情和关联历史</div>
+      </div>
+      <div id="cDetailContent" style="display:none;flex-direction:column;height:100%;">
+        <div class="pane-header">
+          <span id="cDetailName" style="font-weight:700;font-size:16px;color:#1a5276;"></span>
+          <span id="cDetailActions"></span>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:12px 16px;">
+          <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:8px;">📋 关联历史</div>
+          <div class="table-wrap">
+            <table class="data-table" id="cLinkTable">
+              <thead><tr><th>户号</th><th>安装地点</th><th>生效日期</th><th>结束日期</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody id="cLinkTbody"></tbody>
+            </table>
+          </div>
+          <div id="cLinkEmpty" class="empty" style="display:block;">暂无关联记录</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- 底部：户号管理折叠面板 -->
+  <div style="margin-top:14px;background:#fff;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06);overflow:hidden;">
+    <div onclick="cToggleMeterPanel()" style="padding:12px 18px;background:#f8fafc;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;">
+      <span style="font-weight:600;color:#1a5276;font-size:14px;">📡 户号管理</span>
+      <span id="cMeterPanelArrow" style="color:#888;font-size:14px;">▶ 展开</span>
+    </div>
+    <div id="cMeterPanelBody" style="display:none;padding:14px 18px;border-top:1px solid #eee;">
+      <input class="pane-search" id="cMeterSearch" type="text" placeholder="搜索户号或地点..." onkeyup="cFilterMetersPanel()" style="width:100%;margin-bottom:10px;">
+      <div style="margin-bottom:8px;font-size:12px;color:#888;" id="cMeterPanelCount"></div>
+      <div id="cMeterPanelList" style="max-height:300px;overflow-y:auto;">
+        <div class="loading">加载中...</div>
+      </div>
+      <div style="margin-top:10px;"><button class="btn btn-success btn-sm" onclick="openMeterAdd2()" style="width:100%;">+ 新建户号</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3 -->
+<div class="tab-panel" id="tab-receivables">
+<div class="panel-toolbar"><span style="font-weight:500;color:#555;">应收账款列表</span><input type="text" id="recvSearch" placeholder="搜索户号、地点、企业或金额..." onkeyup="loadReceivables()" style="flex:1;max-width:320px;padding:7px 12px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;outline:none;margin-left:12px;"><button class="btn btn-success" onclick="openReceivableAdd()">+ 添加</button><button class="btn btn-outline" onclick="exportReceivables()" style="margin-left:6px;">导出表格</button></div>
+<div class="result-area"><h3>应收账款</h3><div id="receivableResultInfo" class="result-info"></div><div id="receivableListContent"></div></div>
+</div>
+
+
+
+</div>
+
+
+<div class="toast-container" id="toastContainer"></div>
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)"><div class="modal" id="modalContent"></div></div>
+
+<script>
+var API = '/api';
+
+// ===== Auth =====
+function showLogin(){
+  fetch(API+'/auth/users').then(function(r){return r.json();}).then(function(users){
+    var h=''; users.forEach(function(u){ h+='<div style="padding:6px;cursor:pointer;border-radius:4px" onclick="selectUser(\''+u.name+'\')" onmouseover="this.style.background=\'#e8f0f8\'" onmouseout="this.style.background=\'\'">'+u.name+'</div>'; });
+    document.getElementById('userList').innerHTML=h||'<div style="color:#999">暂无用户</div>';
+    document.getElementById('loginModal').style.display='flex';
+  });
+}
+function selectUser(name){ document.getElementById('newUserName').value=name; doLogin(); }
+function doLogin(){
+  var name=document.getElementById('newUserName').value.trim(); if(!name)return;
+  fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.success){ document.getElementById('currentUserName').textContent=d.user_name; document.getElementById('loginModal').style.display='none'; loadStats(); }
+  });
+}
+fetch(API+'/auth/me').then(function(r){return r.json();}).then(function(d){
+  if(d.user_name) document.getElementById('currentUserName').textContent=d.user_name;
+});
+
+function closeModal(e) {
+  if (e && e.target && e.target !== document.getElementById('modalOverlay')) return;
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+  var panel = document.getElementById(id);
+  if (panel) panel.classList.add('active');
+  var btn = document.querySelector('.tab-btn[data-tab="' + id + '"]');
+  if (btn) btn.classList.add('active');
+  if (id === 'tab-customers') cLoadAll();
+  else if (id === 'tab-receivables') loadReceivables();
+
+}
+
+function toast(msg, t) { t = t || 'success'; var c = document.getElementById('toastContainer'); var el = document.createElement('div'); el.className = 'toast toast-' + t; el.textContent = msg; c.appendChild(el); setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},3000); }
+function fm(v) { if(v===null||v===undefined||isNaN(v))return '-'; var a=Math.abs(v); return a>=10000?(v/10000).toFixed(2)+' 万':v.toFixed(2); }
+function eh(s) { if(!s&&s!==0)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+document.querySelectorAll('.tab-btn').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('.tab-btn').forEach(function(x){x.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(x){x.classList.remove('active');});
+  b.classList.add('active');var id=b.getAttribute('data-tab');document.getElementById(id).classList.add('active');
+  if(id==='tab-charge'){/* iframe already loaded */}else if(id==='tab-customers')cLoadAll();else if(id==='tab-receivables')loadReceivables();
+});});
+
+async function loadStats(){try{var r=await fetch(API+'/stats');var d=await r.json();document.getElementById('meterCount').textContent=d.active_meters+'/'+d.total_meters;document.getElementById('dateRange').textContent=d.date_range;document.getElementById('cardFeeExpense').textContent=fm(d.total_fee_expense);document.getElementById('cardFeeIncome').textContent=fm(d.total_fee_income);document.getElementById('cardFeeExpenseCnt').textContent=(d.fee_expense_count||0)+' 条记录';document.getElementById('cardFeeIncomeCnt').textContent=(d.fee_income_count||0)+' 条记录';var diff=(d.total_fee_income||0)-(d.total_fee_expense||0);var de=document.getElementById('cardDiff');de.textContent=fm(diff);de.style.color=diff<0?'#e74c3c':(diff>0?'#27ae60':'#333');var pe=document.getElementById('cardDiffPct');if(d.total_fee_expense>0){var p=(diff/d.total_fee_expense*100).toFixed(1);pe.textContent=p>=0?'盈余 '+p+'%':'缺口 '+Math.abs(p)+'%';}else pe.textContent='';document.getElementById('cardReceivable').textContent=fm(d.pending_amount);document.getElementById('cardReceivableCnt').textContent=(d.pending_count||0)+' 笔未结清';}catch(e){console.error('Stats:',e);}}
+
+async function loadMonthFilter(){try{var r=await fetch(API+'/months');var ms=await r.json();var sel=document.getElementById('monthFilter');ms.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);});}catch(e){}}
+
+document.addEventListener('DOMContentLoaded',function(){
+document.getElementById('searchInput').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch();});
+document.querySelectorAll('.tab-btn').forEach(function(b){b.addEventListener('click',function(){switchTab(this.getAttribute('data-tab'));});});
+});
+
+async function doSearch(){var q=document.getElementById('searchInput').value.trim();var m=document.getElementById('monthFilter').value;var c=document.getElementById('categoryFilter').value;if(!q&&!m&&!c){document.getElementById('searchResultContent').innerHTML='<div class="empty">请输入至少一个查询条件</div>';document.getElementById('searchResultInfo').textContent='';return;}
+document.getElementById('searchResultContent').innerHTML='<div class="loading"><span class="spin"></span>查询中...</div>';try{var p=new URLSearchParams();if(q)p.set('q',q);if(m)p.set('month',m);if(c)p.set('cat',c);var r=await fetch(API+'/search?'+p.toString());var rows=await r.json();if(!rows||rows.length===0){document.getElementById('searchResultContent').innerHTML='<div class="empty">没有找到匹配的记录</div>';document.getElementById('searchResultInfo').textContent='';return;}
+document.getElementById('searchResultInfo').textContent='共 '+rows.length+' 条记录';var h='<div class="table-wrap"><table class="data-table"><thead><tr><th>户号</th><th>安装地点</th><th>年月</th><th class="text-right">电费支</th><th class="text-right">电量支</th><th class="text-right">电费收</th><th class="text-right">电量收</th><th>用电企业</th><th>Counterparty</th></tr></thead><tbody>';
+rows.forEach(function(r){h+='<tr><td>'+eh(r.meter_id)+'</td><td>'+eh(r.location)+'</td><td>'+eh(r.year_month)+'</td><td class="text-right money">'+(r.fee_expense>0?Number(r.fee_expense).toFixed(2):'-')+'</td><td class="text-right money">'+(r.kwh_expense>0?Number(r.kwh_expense).toFixed(2):'-')+'</td><td class="text-right money">'+(r.fee_income>0?Number(r.fee_income).toFixed(2):'-')+'</td><td class="text-right money">'+(r.kwh_income>0?Number(r.kwh_income).toFixed(2):'-')+'</td><td>'+eh(r.customer)+'</td><td>'+eh(r.counterparty||'')+'</td></tr>';});
+h+='</tbody></table></div>';document.getElementById('searchResultContent').innerHTML=h;}catch(e){document.getElementById('searchResultContent').innerHTML='<div class="empty">查询失败: '+e.message+'</div>';}}
+
+// ===== TAB 2: 客户与户号（恢复版 - 2026-05-02） =====
+var cAllMeters = [];
+var cAllCustomers = [];
+var cSelectedCustomerId = null;
+var cSelectedCustomerData = null;
+var cMeterPanelOpen = false;
+
+function cLoadAll() {
+  Promise.all([
+    fetch(API+'/customers').then(function(r){return r.json();}),
+    fetch(API+'/meters').then(function(r){return r.json();})
+  ]).then(function(results) {
+    cAllCustomers = results[0];
+    cAllMeters = results[1];
+    cRenderCustomers();
+    cRenderMetersPanel();
+    document.getElementById('cDetailPlaceholder').style.display = 'flex';
+    document.getElementById('cDetailContent').style.display = 'none';
+  }).catch(function(e) { toast('加载数据失败: '+e.message, 'error'); });
+}
+
+// ===== 左侧：企业列表 =====
+function cRenderCustomers() {
+  var q = document.getElementById('cCustomerSearch').value.trim().toLowerCase();
+  var filtered = cAllCustomers;
+  if (q) filtered = cAllCustomers.filter(function(c) { return c.name.toLowerCase().indexOf(q)!==-1; });
+  document.getElementById('cCustomerCount').textContent = '共 ' + filtered.length + ' 家';
+  var list = document.getElementById('cCustomerList');
+  if (filtered.length===0) { list.innerHTML = '<div class="empty">暂无匹配的企业</div>'; return; }
+  var h = '';
+  filtered.forEach(function(c) {
+    var sel = cSelectedCustomerId === c.id ? ' selected' : '';
+    h += '<div class="c-customer-item' + sel + '" onclick="cSelectCustomer(' + c.id + ')">';
+    h += '<div class="ci-top"><span class="ci-name">' + eh(c.name) + '</span><span class="badge">' + (c.active_links||c.meters||0) + '</span></div></div>';
+  });
+  list.innerHTML = h;
+}
+
+function cFilterCustomers() { cRenderCustomers(); }
+
+async function cSelectCustomer(id) {
+  cSelectedCustomerId = id;
+  cRenderCustomers();
+  try {
+    var r = await fetch(API+'/customer_detail?id='+id);
+    var d = await r.json();
+    cSelectedCustomerData = d;
+    // Show right pane detail
+    document.getElementById('cDetailPlaceholder').style.display = 'none';
+    document.getElementById('cDetailContent').style.display = 'flex';
+    var cust = d.customer || {};
+    document.getElementById('cDetailName').textContent = cust.name || '(ID: '+id+')';
+    document.getElementById('cDetailActions').innerHTML =
+      '<button class="btn btn-outline btn-xs" onclick="cOpenCustomerRename()">\u6539\u540d</button> ' +
+      '<button class="btn btn-primary btn-xs" onclick="cOpenCustomerLink()">\u5173\u8054\u5230\u6237\u53f7</button> ' +
+      '<button class="btn btn-warning btn-xs" onclick="cOpenCustomerSwap()">\u6362\u6237\u53f7</button> ' +
+      '<button class="btn btn-danger btn-xs" onclick="cOpenCustomerUnlink()">\u89e3\u7ed1</button>';
+    cRenderCustomerLinks(d.links||[]);
+  } catch(e) {
+    toast('\u52a0\u8f7d\u4f01\u4e1a\u8be6\u60c5\u5931\u8d25: '+e.message, 'error');
+  }
+}
+
+function cRenderCustomerLinks(links) {
+  var tbody = document.getElementById('cLinkTbody');
+  var empty = document.getElementById('cLinkEmpty');
+  tbody.innerHTML = '';
+  if (!links || links.length===0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  var h = '';
+  links.forEach(function(lk) {
+    var statusClass = lk.current ? 'tag-green' : 'tag-gray';
+    var statusText = lk.current ? '\u5f53\u524d' : '\u5386\u53f2';
+    h += '<tr>';
+    h += '<td>' + eh(lk.meter_id) + '</td>';
+    h += '<td>' + eh(lk.location||'') + '</td>';
+    h += '<td>' + eh(lk.valid_from||'') + '</td>';
+    h += '<td>' + eh(lk.valid_to||'-') + '</td>';
+    h += '<td><span class="tag ' + statusClass + '">' + statusText + '</span></td>';
+    h += '<td>';
+    h += '<button class="btn btn-danger btn-xs" onclick="cOpenCustomerUnlinkSingle('+lk.id+','+cSelectedCustomerId+')" '+(lk.current?'':'disabled style="opacity:0.4;"')+'>\u89e3\u7ed1</button>';
+    h += '</td></tr>';
+  });
+  tbody.innerHTML = h;
+}
+
+// ===== \u5e95\u90e8\uff1a\u6237\u53f7\u7ba1\u7406\u6298\u53e0\u9762\u677f =====
+function cToggleMeterPanel() {
+  cMeterPanelOpen = !cMeterPanelOpen;
+  var body = document.getElementById('cMeterPanelBody');
+  var arrow = document.getElementById('cMeterPanelArrow');
+  if (cMeterPanelOpen) {
+    body.style.display = 'block';
+    arrow.textContent = '\u25bc \u6536\u8d77';
+    cRenderMetersPanel();
+  } else {
+    body.style.display = 'none';
+    arrow.textContent = '\u25b6 \u5c55\u5f00';
+  }
+}
+
+function cRenderMetersPanel() {
+  if (!cMeterPanelOpen) return;
+  var q = document.getElementById('cMeterSearch').value.trim().toLowerCase();
+  var filtered = cAllMeters;
+  if (q) filtered = cAllMeters.filter(function(m) { return m.meter_id.toLowerCase().indexOf(q)!==-1 || (m.location||'').toLowerCase().indexOf(q)!==-1; });
+  document.getElementById('cMeterPanelCount').textContent = '\u5171 ' + filtered.length + ' \u4e2a\u6237\u53f7';
+  var list = document.getElementById('cMeterPanelList');
+  if (filtered.length===0) { list.innerHTML = '<div class="empty">\u6682\u65e0\u5339\u914d\u7684\u6237\u53f7</div>'; return; }
+  var h = '';
+  filtered.forEach(function(m) {
+    h += '<div class="c-meter-item" onclick="cClickMeterDetail(\'' + eh(m.meter_id) + '\')">';
+    h += '<div class="mi-top"><span class="mi-id">' + eh(m.meter_id) + '</span><span class="badge">' + (m.customer_count||0) + '</span></div>';
+    h += '<div class="mi-loc">' + eh(m.location||'') + '</div></div>';
+  });
+  list.innerHTML = h;
+}
+
+function cFilterMetersPanel() { cRenderMetersPanel(); }
+
+async function cClickMeterDetail(meterId) {
+  try {
+    var r = await fetch(API+'/meter_detail?meter_id='+encodeURIComponent(meterId));
+    var d = await r.json();
+    var info = d.info || {};
+    var custHistory = d.customer_history || [];
+    var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button>';
+    h += '<h3>\u6237\u53f7: ' + eh(meterId) + '</h3>';
+    h += '<div style="font-size:13px;color:#555;margin-bottom:16px;">';
+    h += '<span style="margin-right:16px;">\u5b89\u88c5\u5730\u70b9: <strong>' + eh(info.location||'-') + '</strong></span>';
+    h += '<span style="margin-right:16px;">\u7528\u7535\u7c7b\u578b: <strong>' + eh(info.usage_type||'-') + '</strong></span>';
+    h += '<span>\u6743\u5c5e: <strong>' + eh(info.ownership||'-') + '</strong></span></div>';
+    h += '<div style="font-size:13px;font-weight:600;color:#555;margin-bottom:8px;">\u5173\u8054\u4f01\u4e1a\u5217\u8868</div>';
+    if (custHistory.length===0) {
+      h += '<div class="empty" style="padding:30px;">\u6682\u65e0\u5173\u8054\u4f01\u4e1a</div>';
+    } else {
+      h += '<table class="data-table"><thead><tr><th>\u4f01\u4e1a\u540d\u79f0</th><th>\u751f\u6548\u65e5\u671f</th><th>\u7ed3\u675f\u65e5\u671f</th><th>\u72b6\u6001</th></tr></thead><tbody>';
+      custHistory.forEach(function(ch) {
+        var active = (!ch.valid_to || ch.valid_to >= '2026') && !ch.ended ? true : false;
+        var tag = active ? '<span class="tag tag-green">\u5f53\u524d</span>' : '<span class="tag tag-gray">\u5386\u53f2</span>';
+        h += '<tr><td>' + eh(ch.customer_name||ch.name||'') + '</td><td>' + eh(ch.valid_from||'') + '</td><td>' + eh(ch.valid_to||'-') + '</td><td>' + tag + '</td></tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '<div class="form-actions" style="margin-top:14px;"><button class="btn btn-primary" onclick="cOpenMeterEditFromDetail(\'' + eh(meterId) + '\')">\u7f16\u8f91\u6237\u53f7</button></div>';
+    document.getElementById('modalContent').innerHTML = h;
+    document.getElementById('modalOverlay').classList.add('show');
+  } catch(e) {
+    toast('\u52a0\u8f7d\u6237\u53f7\u8be6\u60c5\u5931\u8d25: '+e.message, 'error');
+  }
+}
+
+// ===== \u5f39\u7a97\uff1a\u65b0\u5efa\u4f01\u4e1a / \u6237\u53f7 =====
+function openCustomerAdd2() {
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u65b0\u5efa\u4f01\u4e1a</h3>' +
+    '<div class="form-group"><label>\u4f01\u4e1a\u540d\u79f0 *</label><input id="cafName" placeholder="\u5982: XX\u7535\u529b\u5de5\u7a0b\u6709\u9650\u516c\u53f8"></div>' +
+    '<div class="form-group"><label>\u5173\u8054\u6237\u53f7\uff08\u53ef\u9009\uff09</label><select id="cafMeter"><option value="">\u6682\u4e0d\u5173\u8054</option></select></div>' +
+    '<div class="form-group"><label>\u751f\u6548\u65e5\u671f</label><input id="cafValidFrom" type="month"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-primary" onclick="cSubmitCustomerAdd()">\u786e\u8ba4\u521b\u5efa</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  var sel = document.getElementById('cafMeter');
+  cAllMeters.forEach(function(m) { var o = document.createElement('option'); o.value = m.meter_id; o.textContent = m.meter_id + ' - ' + (m.location||''); sel.appendChild(o); });
+}
+
+async function cSubmitCustomerAdd() {
+  var n = document.getElementById('cafName').value.trim();
+  if (!n) { toast('\u8bf7\u8f93\u5165\u4f01\u4e1a\u540d\u79f0','error'); return; }
+  try {
+    var body = { name: n, meter_id: document.getElementById('cafMeter').value || undefined, valid_from: document.getElementById('cafValidFrom').value || undefined };
+    var r = await fetch(API+'/customer_add', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    var d = await r.json();
+    if (d.success) { toast(d.message||'\u521b\u5efa\u6210\u529f'); closeModal(null); cLoadAll(); }
+    else { toast(d.message||'\u521b\u5efa\u5931\u8d25','error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+function openMeterAdd2() {
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u65b0\u5efa\u6237\u53f7</h3>' +
+    '<div class="form-group"><label>\u6237\u53f7 *</label><input id="mfMeterId3" placeholder="\u5982: 0123456789"></div>' +
+    '<div class="form-group"><label>\u5b89\u88c5\u5730\u70b9</label><input id="mfLocation3" placeholder="\u5982: B1-101"></div>' +
+    '<div class="form-row"><div class="form-group"><label>\u7528\u7535\u7c7b\u578b</label><select id="mfUsageType3"><option value="">\u8bf7\u9009\u62e9</option><option>\u5de5\u4e1a</option><option>\u5546\u4e1a</option><option>\u5c45\u6c11</option><option>\u5176\u4ed6</option></select></div>' +
+    '<div class="form-group"><label>\u6743\u5c5e</label><select id="mfOwnership3"><option value="">\u8bf7\u9009\u62e9</option><option>\u81ea\u6709</option><option>\u79df\u7528</option><option>\u4ee3\u7ba1</option></select></div></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-primary" onclick="cSubmitMeterAdd()">\u786e\u8ba4\u6dfb\u52a0</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+async function cSubmitMeterAdd() {
+  var mid = document.getElementById('mfMeterId3').value.trim();
+  if (!mid) { toast('\u8bf7\u8f93\u5165\u6237\u53f7','error'); return; }
+  try {
+    var body = { meter_id: mid, location: document.getElementById('mfLocation3').value.trim(), usage_type: document.getElementById('mfUsageType3').value, ownership: document.getElementById('mfOwnership3').value };
+    var r = await fetch(API+'/meter_add', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    var d = await r.json();
+    if (d.success) { toast(d.message||'\u6dfb\u52a0\u6210\u529f'); closeModal(null); cLoadAll(); }
+    else { toast(d.message||'\u6dfb\u52a0\u5931\u8d25','error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+// ===== \u5f39\u7a97\uff1a\u6539\u540d =====
+function cOpenCustomerRename() {
+  if (!cSelectedCustomerId) return;
+  var cust = cAllCustomers.find(function(c) { return c.id === cSelectedCustomerId; });
+  var name = cust ? cust.name : '';
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u4f01\u4e1a\u6539\u540d</h3>' +
+    '<div class="form-group"><label>\u539f\u540d\u79f0</label><input id="crofOld" value="' + eh(name) + '" readonly style="background:#f5f5f5;"></div>' +
+    '<div class="form-group"><label>\u65b0\u540d\u79f0 *</label><input id="crofNew" placeholder="\u8f93\u5165\u65b0\u540d\u79f0" value="' + eh(name) + '"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-primary" onclick="cSubmitCustomerRename()">\u786e\u8ba4\u6539\u540d</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  setTimeout(function(){ document.getElementById('crofNew').focus(); }, 100);
+}
+
+async function cSubmitCustomerRename() {
+  var n = document.getElementById('crofNew').value.trim();
+  if (!n) { toast('\u8bf7\u8f93\u5165\u65b0\u540d\u79f0','error'); return; }
+  try {
+    var r = await fetch(API+'/customer_rename', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id: cSelectedCustomerId, name: n})});
+    var d = await r.json();
+    if (d.success) { toast('\u4f01\u4e1a\u5df2\u66f4\u540d\u4e3a: '+n); closeModal(null); cLoadAll(); cSelectCustomer(cSelectedCustomerId); }
+    else { toast(d.message||'\u6539\u540d\u5931\u8d25','error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+// ===== \u5f39\u7a97\uff1a\u5173\u8054\u5230\u6237\u53f7 =====
+function cOpenCustomerLink() {
+  var cust = cAllCustomers.find(function(c) { return c.id === cSelectedCustomerId; });
+  var name = cust ? cust.name : '';
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u4f01\u4e1a\u5173\u8054\u5230\u6237\u53f7</h3>' +
+    '<p style="font-size:13px;color:#555;margin-bottom:14px;">\u4e3a <strong>' + eh(name) + '</strong> \u5173\u8054\u6237\u53f7</p>' +
+    '<div class="form-group"><label>\u9009\u62e9\u6237\u53f7 *</label><select id="clfMeterId2"><option value="">\u52a0\u8f7d\u4e2d...</option></select></div>' +
+    '<div class="form-group"><label>\u751f\u6548\u65e5\u671f</label><input id="clfValidFrom2" type="month"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-primary" onclick="cSubmitCustomerLink()">\u786e\u8ba4\u5173\u8054</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  var sel = document.getElementById('clfMeterId2');
+  sel.innerHTML = '<option value="">\u8bf7\u9009\u62e9\u6237\u53f7</option>';
+  cAllMeters.forEach(function(m) { var o = document.createElement('option'); o.value = m.meter_id; o.textContent = m.meter_id + ' - ' + (m.location||''); sel.appendChild(o); });
+}
+
+async function cSubmitCustomerLink() {
+  var mid = document.getElementById('clfMeterId2').value;
+  if (!mid) { toast('\u8bf7\u9009\u62e9\u6237\u53f7','error'); return; }
+  try {
+    var body = {customer_id: cSelectedCustomerId, meter_id: mid, valid_from: document.getElementById('clfValidFrom2').value || undefined};
+    var r = await fetch(API+'/customer_link', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    var d = await r.json();
+    if (d.success) { toast('\u5173\u8054\u6210\u529f'); closeModal(null); cLoadAll(); cSelectCustomer(cSelectedCustomerId); }
+    else { toast(d.message||'\u5173\u8054\u5931\u8d25','error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+// ===== \u5f39\u7a97\uff1a\u6362\u6237\u53f7 =====
+function cOpenCustomerSwap() {
+  if (!cSelectedCustomerData || !cSelectedCustomerData.links) { toast('\u65e0\u5f53\u524d\u5173\u8054\u53ef\u66f4\u6362','info'); return; }
+  var curLinks = cSelectedCustomerData.links.filter(function(lk) { return lk.current; });
+  if (curLinks.length===0) { toast('\u8be5\u4f01\u4e1a\u6682\u65e0\u5f53\u524d\u5173\u8054\u7684\u6237\u53f7','info'); return; }
+  var custName = (cSelectedCustomerData.customer && cSelectedCustomerData.customer.name) || '';
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u6362\u6237\u53f7</h3>' +
+    '<p style="font-size:13px;color:#555;margin-bottom:14px;">\u4e3a <strong>' + eh(custName) + '</strong> \u66f4\u6362\u6237\u53f7</p>' +
+    '<div class="form-group"><label>\u5f85\u89e3\u7ed1\u7684\u5f53\u524d\u5173\u8054</label><select id="csfOldLink">';
+  curLinks.forEach(function(lk) { h += '<option value="'+lk.id+'">'+eh(lk.meter_id)+' - '+eh(lk.location||'')+'</option>'; });
+  h += '</select></div><div class="form-group"><label>\u65b0\u6237\u53f7 *</label><select id="csfNewMeter"><option value="">\u52a0\u8f7d\u4e2d...</option></select></div>' +
+    '<div class="form-group"><label>\u751f\u6548\u65e5\u671f</label><input id="csfValidFrom" type="month"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-warning" onclick="cSubmitCustomerSwap()">\u786e\u8ba4\u6362\u6237\u53f7</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  var sel = document.getElementById('csfNewMeter');
+  sel.innerHTML = '<option value="">\u8bf7\u9009\u62e9\u6237\u53f7</option>';
+  cAllMeters.forEach(function(m) { var o = document.createElement('option'); o.value = m.meter_id; o.textContent = m.meter_id + ' - ' + (m.location||''); sel.appendChild(o); });
+}
+
+async function cSubmitCustomerSwap() {
+  var oid = parseInt(document.getElementById('csfOldLink').value);
+  var nm = document.getElementById('csfNewMeter').value;
+  if (!nm) { toast('\u8bf7\u9009\u62e9\u65b0\u6237\u53f7','error'); return; }
+  var vt = document.getElementById('csfValidFrom').value || '';
+  try {
+    var r1 = await fetch(API+'/customer_unlink', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id: oid, valid_to: vt})});
+    var d1 = await r1.json();
+    if (!d1.success) { toast('\u89e3\u7ed1\u65e7\u6237\u53f7\u5931\u8d25: '+(d1.message||''),'error'); return; }
+    var r2 = await fetch(API+'/customer_link', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({customer_id: cSelectedCustomerId, meter_id: nm, valid_from: vt || undefined})});
+    var d2 = await r2.json();
+    if (d2.success) { toast('\u6362\u6237\u53f7\u6210\u529f'); closeModal(null); cLoadAll(); cSelectCustomer(cSelectedCustomerId); }
+    else { toast('\u5173\u8054\u65b0\u6237\u53f7\u5931\u8d25: '+(d2.message||''),'error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+// ===== \u5f39\u7a97\uff1a\u89e3\u7ed1 =====
+function cOpenCustomerUnlink() {
+  if (!cSelectedCustomerData || !cSelectedCustomerData.links || cSelectedCustomerData.links.length===0) { toast('\u65e0\u5173\u8054\u8bb0\u5f55\u53ef\u89e3\u7ed1','info'); return; }
+  var custName = (cSelectedCustomerData.customer && cSelectedCustomerData.customer.name) || '';
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u89e3\u7ed1\u6237\u53f7</h3>' +
+    '<p style="font-size:13px;color:#555;margin-bottom:14px;">\u4e3a <strong>' + eh(custName) + '</strong> \u89e3\u7ed1\u5173\u8054</p>' +
+    '<div class="form-group"><label>\u9009\u62e9\u8981\u89e3\u7ed1\u7684\u5173\u8054</label><select id="cufLinkId">';
+  cSelectedCustomerData.links.forEach(function(lk) {
+    var sl = lk.current ? ' (\u5f53\u524d)' : (lk.valid_to ? ' (\u5df2\u7ed3\u675f)' : '');
+    h += '<option value="'+lk.id+'">'+eh(lk.meter_id)+' - '+eh(lk.location||'')+sl+'</option>';
+  });
+  h += '</select></div><div class="form-group"><label>\u7ed3\u675f\u65e5\u671f *</label><input id="cufValidTo" type="month"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-danger" onclick="cSubmitCustomerUnlink()">\u786e\u8ba4\u89e3\u7ed1</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+async function cSubmitCustomerUnlink() {
+  var id = parseInt(document.getElementById('cufLinkId').value);
+  var vt = document.getElementById('cufValidTo').value;
+  if (!vt) { toast('\u8bf7\u8f93\u5165\u7ed3\u675f\u65e5\u671f','error'); return; }
+  try {
+    var r = await fetch(API+'/customer_unlink', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id: id, valid_to: vt})});
+    var d = await r.json();
+    if (d.success) { toast('\u89e3\u7ed1\u6210\u529f'); closeModal(null); cLoadAll(); cSelectCustomer(cSelectedCustomerId); }
+    else { toast(d.message||'\u89e3\u7ed1\u5931\u8d25','error'); }
+  } catch(e) { toast('\u8bf7\u6c42\u5931\u8d25: '+e.message,'error'); }
+}
+
+// ===== \u5355\u6761\u89e3\u7ed1\uff08\u4ece\u5173\u8054\u5386\u53f2\u8868\u7684\u64cd\u4f5c\u5217\uff09 =====
+function cOpenCustomerUnlinkSingle(linkId) {
+  var link = null;
+  if (cSelectedCustomerData && cSelectedCustomerData.links) {
+    cSelectedCustomerData.links.forEach(function(lk) { if (lk.id === linkId) link = lk; });
+  }
+  var custName = (cSelectedCustomerData && cSelectedCustomerData.customer && cSelectedCustomerData.customer.name) || '';
+  var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>\u89e3\u7ed1\u6237\u53f7</h3>' +
+    '<p style="font-size:13px;color:#555;margin-bottom:14px;">\u4e3a <strong>' + eh(custName) + '</strong> \u89e3\u7ed1\u6237\u53f7 ' + (link?eh(link.meter_id):'') + '</p>' +
+    '<div class="form-group"><label>\u7ed3\u675f\u65e5\u671f *</label><input id="cufValidTo" type="month"></div>' +
+    '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">\u53d6\u6d88</button><button class="btn btn-danger" onclick="cSubmitCustomerUnlinkSingle()">确认解绑</button></div>';
+  document.getElementById('modalContent').innerHTML = h;
+  document.getElementById('modalOverlay').classList.add('show');
+  window._cUnlinkSingleId = linkId;
+}
+
+async function cSubmitCustomerUnlinkSingle() {
+  var id = window._cUnlinkSingleId;
+  var vt = document.getElementById('cufValidTo').value;
+  if (!vt) { toast('请输入结束日期','error'); return; }
+  try {
+    var r = await fetch(API+'/customer_unlink', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id: id, valid_to: vt})});
+    var d = await r.json();
+    if (d.success) { toast('解绑成功'); closeModal(null); cLoadAll(); cSelectCustomer(cSelectedCustomerId); }
+    else { toast(d.message||'解绑失败','error'); }
+  } catch(e) { toast('请求失败: '+e.message,'error'); }
+}
+
+function cOpenMeterEditFromDetail(meterId) {
+  closeModal(null);
+  setTimeout(function(){
+    var h = '<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>编辑户号: ' + eh(meterId) + '</h3>' +
+      '<div class="form-group"><label>户号</label><input id="mfeId" value="' + eh(meterId) + '" readonly style="background:#f5f5f5;"></div>' +
+      '<div class="form-group"><label>安装地点</label><input id="mfeLoc"></div>' +
+      '<div class="form-row"><div class="form-group"><label>用电类型</label><select id="mfeType"><option value="">请选择</option><option>工业</option><option>商业</option><option>居民</option><option>其他</option></select></div>' +
+      '<div class="form-group"><label>权属</label><select id="mfeOwn"><option value="">请选择</option><option>自有</option><option>租用</option><option>代管</option></select></div></div>' +
+      '<div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">取消</button><button class="btn btn-primary" onclick="cSubmitMeterEdit()">保存修改</button></div>';
+    document.getElementById('modalContent').innerHTML = h;
+    document.getElementById('modalOverlay').classList.add('show');
+    fetch(API+'/meter_detail?meter_id='+encodeURIComponent(meterId)).then(function(r){return r.json();}).then(function(d){
+      if (d.info) { document.getElementById('mfeLoc').value = d.info.location||''; document.getElementById('mfeType').value = d.info.usage_type||''; document.getElementById('mfeOwn').value = d.info.ownership||''; }
+    }).catch(function(){});
+  }, 200);
+}
+
+async function cSubmitMeterEdit() {
+  var mid = document.getElementById('mfeId').value.trim();
+  try {
+    var body = { meter_id: mid, location: document.getElementById('mfeLoc').value.trim(), usage_type: document.getElementById('mfeType').value, ownership: document.getElementById('mfeOwn').value };
+    var r = await fetch(API+'/meter_update', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    var d = await r.json();
+    if (d.success) { toast('更新成功'); closeModal(null); cLoadAll(); }
+    else { toast(d.message||'更新失败','error'); }
+  } catch(e) { toast('请求失败: '+e.message,'error'); }
+}
+
+// ===== TAB 3: RECEIVABLES =====
+async function loadReceivables(){var q=document.getElementById('recvSearch').value.trim().toLowerCase();var c=document.getElementById('receivableListContent');c.innerHTML='<div class="loading"><span class="spin"></span>加载中...</div>';try{var r=await fetch(API+'/receivables');var rows=await r.json();if(!rows||rows.length===0){c.innerHTML='<div class="empty">暂无应收账款记录</div>';document.getElementById('receivableResultInfo').textContent='';return;}
+if(q){
+rows=rows.filter(function(x){return (x.meter_id||'').toLowerCase().indexOf(q)!==-1||(x.location||'').toLowerCase().indexOf(q)!==-1||(x.customer_name||'').toLowerCase().indexOf(q)!==-1||String(x.receivable_amount||'').indexOf(q)!==-1||String(x.received_amount||'').indexOf(q)!==-1;});
+}
+document.getElementById('receivableResultInfo').textContent='共 '+rows.length+' 笔记录'+(q?'（已筛选）':'');var h='';rows.forEach(function(r){var st,sl;if(r.status==='paid'){st='tag-green';sl='已结清';}else if(r.status==='partial'){st='tag-yellow';sl='部分到账';}else{st='tag-red';sl='未缴';}
+h+='<div class="receivable-item"><div class="meta"><div><strong>'+eh(r.meter_id)+'</strong> · '+eh(r.location)+' · <strong>'+eh(r.year_month)+'</strong></div><div style="font-size:14px;color:#333;margin-top:2px;"><strong>'+eh(r.customer_name||'')+'</strong>'+(r.company?' <span style="color:#666;font-size:13px;">· '+eh(r.company)+'</span>':'')+'</div></div><div class="amount">应收 '+Number(r.receivable_amount).toFixed(2)+' · 实收 '+Number(r.received_amount).toFixed(2)+'</div><span class="tag '+st+'">'+sl+'</span><div class="actions">';if(r.status!=='paid')h+='<button class="btn btn-success btn-xs" onclick="openReceivablePay('+r.id+','+r.receivable_amount+','+r.received_amount+')">记录到账</button> ';
+h+='<button class="btn btn-outline btn-xs" onclick="togglePaymentHistory('+r.id+',this)" style="margin-right:4px;">付款记录</button> <button class="btn btn-danger btn-xs" onclick="deleteReceivable('+r.id+')">删除</button></div></div><div id="payHist'+r.id+'" style="display:none;width:100%;margin-top:8px;padding:8px 12px;background:#f8f9fa;border-radius:6px;font-size:12px;color:#666;"></div></div>';});
+c.innerHTML=h;}catch(e){c.innerHTML='<div class="empty">加载失败: '+e.message+'</div>';}}
+
+function exportReceivables(){if(typeof XLSX==='undefined'){toast('正在加载导出组件...','warn');return;}
+fetch(API+'/receivables').then(function(r){return r.json();}).then(function(rows){if(!rows||rows.length===0){toast('没有数据可导出','error');return;}
+var data=rows.map(function(r){return{
+'户号':r.meter_id||'','安装地点':r.location||'','年月':r.year_month||'','用电企业':r.customer_name||'','应收金额':r.receivable_amount||0,'已收金额':r.received_amount||0,'状态':r.status==='paid'?'已结清':r.status==='partial'?'部分到账':'待收款','到账日期':r.received_date||''};});
+var ws=XLSX.utils.json_to_sheet(data);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'应收账款');var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});var blob=new Blob([wbout],{type:'application/octet-stream'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='应收账款_'+new Date().toISOString().slice(0,10)+'.xlsx';document.body.appendChild(a);a.click();document.body.removeChild(a);toast('导出成功','success');}).catch(function(e){toast('导出失败: '+e.message,'error');});
+}
+
+function openReceivableAdd(){var h='<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>添加应收账款</h3><div class="form-group"><label>户号 *</label><select id="rfMeterId"><option value="">加载中...</option></select></div><div class="form-row"><div class="form-group"><label>年月 *</label><input id="rfYearMonth" type="month"></div><div class="form-group"><label>应收金额 *</label><input id="rfAmount" type="number" step="0.01" placeholder="如: 1234.56"></div></div><div class="form-group"><label>用电企业</label><input id="rfPayer" placeholder="用电企业名称"></div><div class="form-group"><label>确认日期</label><input id="rfDate" type="date"></div><div class="form-group"><label>备注</label><textarea id="rfNote" placeholder="可选"></textarea></div><div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">取消</button><button class="btn btn-primary" onclick="submitReceivableAdd()">确认添加</button></div>';
+document.getElementById('modalContent').innerHTML=h;document.getElementById('modalOverlay').classList.add('show');
+fetch(API+'/meters').then(function(r){return r.json();}).then(function(rows){var sel=document.getElementById('rfMeterId');sel.innerHTML='<option value="">请选择户号</option>';rows.forEach(function(m){var o=document.createElement('option');o.value=m.meter_id;o.textContent=m.meter_id+' - '+(m.location||'');sel.appendChild(o);});}).catch(function(e){});}
+
+async function submitReceivableAdd(){var mid=document.getElementById('rfMeterId').value;var ym=document.getElementById('rfYearMonth').value;var amt=document.getElementById('rfAmount').value;if(!mid||!ym||!amt){toast('请填写户号、年月和金额','error');return;}
+try{var body={meter_id:mid,year_month:ym,receivable_amount:parseFloat(amt),customer_name:document.getElementById('rfPayer').value.trim(),confirmed_date:document.getElementById('rfDate').value,note:document.getElementById('rfNote').value.trim()};var r=await fetch(API+'/receivable_create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();if(d.success){toast(d.message||'创建成功');closeModal(null);loadReceivables();loadStats();}else{toast(d.message||'创建失败','error');}}catch(e){toast('请求失败: '+e.message,'error');}}
+
+function openReceivablePay(id,total,paid){var o=(total-paid).toFixed(2);var h='<button class="modal-close" onclick="closeModal(null)">&times;</button><h3>记录到账</h3><p style="font-size:14px;color:#555;margin-bottom:15px;">应收: '+total.toFixed(2)+' · 已收: '+paid.toFixed(2)+' · 剩余: <strong>'+o+'</strong></p><div class="form-row"><div class="form-group"><label>到账金额 *</label><input id="pfAmount" type="number" step="0.01" max="'+o+'" placeholder="如: '+o+'"></div><div class="form-group"><label>到账日期</label><input id="pfDate" type="date"></div></div><div class="form-actions"><button class="btn btn-outline" onclick="closeModal(null)">取消</button><button class="btn btn-success" onclick="submitReceivablePay('+id+')">确认到账</button></div>';
+document.getElementById('modalContent').innerHTML=h;document.getElementById('modalOverlay').classList.add('show');document.getElementById('pfDate').valueAsDate=new Date();}
+
+async function submitReceivablePay(id){var a=document.getElementById('pfAmount').value;if(!a||parseFloat(a)<=0){toast('请输入有效的到账金额','error');return;}
+try{var r=await fetch(API+'/receivable_pay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id,amount:parseFloat(a),received_date:document.getElementById('pfDate').value})});var d=await r.json();if(d.success){toast(d.message||'到账成功');closeModal(null);loadReceivables();loadStats();}else{toast(d.message||'操作失败','error');}}catch(e){toast('请求失败: '+e.message,'error');}}
+async function deleteReceivable(id){if(!confirm('确认删除此应收记录？'))return;try{var r=await fetch(API+'/receivable_delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})});var d=await r.json();if(d.success){toast(d.message||'已删除');loadReceivables();loadStats();}else{toast(d.message||'删除失败','error');}}catch(e){toast('请求失败: '+e.message,'error');}}
+
+
+
+
+
+loadStats();loadMonthFilter();setInterval(loadStats,60000);
+
+
+async function togglePaymentHistory(id,btn){
+  var div=document.getElementById('payHist'+id);
+  if(div.style.display!='none'){div.style.display='none';return;}
+  div.style.display='block';
+  if(!div._loaded){
+    try{
+      var r=await fetch(API+'/payment_history?receivable_id='+id);
+      var rows=await r.json();
+      if(rows.length===0){div.innerHTML='<span style="color:#999;">暂无付款记录</span>';}
+      else{
+        var h='<div style="font-weight:600;margin-bottom:4px;">付款明细:</div>';
+        rows.forEach(function(p){
+          h+='<div style="padding:2px 0;">+'+Number(p.amount).toFixed(2)+' \u5143 - '+eh(p.payment_date||p.created_at||'')+'</div>';
+        });
+        div.innerHTML=h;
+      }
+      div._loaded=true;
+    }catch(e){div.innerHTML='<span style="color:#e74c3c;">加载失败</span>';}
+  }
+}
+
+</script>
+</body>
+</html>

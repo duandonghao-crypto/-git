@@ -1,0 +1,656 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>转供电企业抄表录入</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;color:#333}
+
+.header h1{font-size:19px}.header .sub{font-size:12px;opacity:0.8}
+.container{max-width:1700px;margin:0 auto;padding:0 14px}
+.toolbar{background:#fff;border-radius:8px 8px 0 0;padding:10px 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.toolbar .info{font-size:13px;color:#666}
+.month-picker{display:flex;align-items:center;gap:8px;background:#e8f0fe;padding:8px 14px;border-radius:6px}
+.month-picker label{font-weight:bold;font-size:14px;white-space:nowrap}
+.month-picker select{padding:6px 10px;border:2px solid #2980b9;border-radius:6px;font-size:14px;background:#fff;outline:none;min-width:150px}
+.table-wrap{background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{border:1px solid #e0e0e0;vertical-align:middle;position:relative}
+tr.error-row td{background:#fff5f5!important} tr.error-row{border-left:4px solid #e74c3c} tr.ok-row{border-left:4px solid #27ae60}
+.rownum{text-align:center;color:#999;width:36px;padding:0}
+.row-errors{font-size:11px;color:#e74c3c;margin-top:2px;line-height:1.3;word-break:break-all}
+.input-wrap{position:relative;display:flex}
+.input-wrap input{flex:1;padding:10px 8px;border:1px solid #d0d0d0;border-radius:4px 0 0 4px;font-size:13px;outline:none;min-width:0;height:38px}
+.input-wrap input:focus{border-color:#2980b9;box-shadow:0 0 0 2px rgba(41,128,185,0.15)}
+.input-wrap input.matched{border-color:#27ae60}
+.input-wrap input.unmatched{border-color:#e74c3c;background:#fff5f5}
+.input-wrap .dropdown-btn{width:28px;border:1px solid #d0d0d0;border-left:none;border-radius:0 4px 4px 0;background:#f8f9fa;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:#666;flex-shrink:0}
+.input-wrap .dropdown-btn:hover{background:#e8f0fe;color:#2980b9}
+td input[type=text],td input[type=number]{width:100%;padding:10px 8px;border:1px solid #d0d0d0;border-radius:4px;font-size:13px;outline:none;height:38px}
+td input[type=text]:focus,td input[type=number]:focus{border-color:#2980b9;box-shadow:0 0 0 2px rgba(41,128,185,0.15)}
+input.amount-input{background:#E2EFDA!important} input.kwh-input{background:#E2EFDA!important}
+input.hao-input{background:#FFF2CC!important} input.addr-input{background:#FFF2CC!important}
+input.cq-input{background:#FFF2CC!important}
+input.ent-input{background:#FFF2CC!important} input.remark-input{background:#fff}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none!important;margin:0!important;display:none!important}
+input[type=number]{-moz-appearance:textfield!important;appearance:textfield!important}
+.suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d0d0d0;border-radius:0 0 6px 6px;max-height:240px;overflow-y:auto;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:none}
+.suggestions.show{display:block}
+.sug-item{padding:6px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0}
+.sug-item:last-child{border-bottom:none}
+.sug-item:hover,.sug-item.active{background:#e8f0fe}
+.sug-item.no-match{color:#999;font-style:italic;cursor:default}
+.validation-panel{display:none;background:#fff;border-radius:8px;padding:16px;margin-top:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.validation-panel.show{display:block}
+.val-summary{padding:10px;border-radius:6px;margin-bottom:10px;font-weight:bold;font-size:14px}
+.val-summary.ok{background:#e8f8e8;color:#27ae60}.val-summary.warn{background:#fff8e8;color:#e67e22}.val-summary.err{background:#fde8e8;color:#e74c3c}
+.val-item{padding:6px 10px;margin:3px 0;border-radius:4px;font-size:13px}
+.val-item.warn{background:#fff8e8;border-left:3px solid #f39c12}.val-item.err{background:#fde8e8;border-left:3px solid #e74c3c}
+.btn{padding:7px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;transition:all 0.2s}
+.btn-primary{background:#2980b9;color:#fff}.btn-primary:hover{background:#1a5276}
+.btn-success{background:#27ae60;color:#fff}.btn-success:hover{background:#1e8449}
+.btn-outline{background:#fff;color:#2980b9;border:2px solid #2980b9}.btn-outline:hover{background:#e8f0fe}
+.btn-warning{background:#f39c12;color:#fff}.btn-warning:hover{background:#e67e22}
+.btn-sm{padding:4px 10px;font-size:11px;font-weight:bold;color:#2980b9;border:2px solid #2980b9;background:#fff}
+.btn-sm.on{color:#fff;background:#f39c12;border-color:#f39c12}
+.del-btn{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:12px;padding:2px 6px;border-radius:3px}
+.del-btn:hover{background:#fde8e8}
+.toast{display:none !important;position:fixed;top:16px;right:16px;padding:10px 20px;border-radius:8px;color:#fff;font-size:13px;z-index:1000;opacity:0;transform:translateY(-20px);transition:all 0.3s}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:#27ae60}.toast.error{background:#e74c3c}.toast.warn{background:#f39c12}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:500;display:flex;align-items:center;justify-content:center}
+.modal-box{background:#fff;border-radius:12px;padding:20px;max-width:600px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2)}
+.modal-box h3{font-size:16px;margin-bottom:14px;color:#1a5276}
+.modal-row{padding:10px 14px;margin:4px 0;border-radius:6px;cursor:pointer;transition:all 0.15s;border:2px solid #e0e0e0}
+.modal-row:hover{background:#e8f0fe;border-color:#2980b9}
+.modal-row strong{font-size:14px}.modal-row .detail{font-size:12px;color:#666;margin-top:2px}
+
+.month-nav { display:flex; align-items:center; gap:6px; background:#fff; border-radius:6px; padding:0 4px; }
+.month-nav button { width:28px; height:28px; border:1px solid #ddd; border-radius:4px; background:#f5f5f5; cursor:pointer; font-size:14px; color:#333; display:flex; align-items:center; justify-content:center; }
+.month-nav button:hover { background:#e0e0e0; }
+.month-nav .month-label { font-size:13px; font-weight:bold; color:#1a5276; min-width:70px; text-align:center; user-select:none; }
+table#chargeTable td{text-align:left}
+#chargeTable td{text-align:left}
+#chargeTable td{text-align:left}
+#chargeTable thead td{position:sticky;top:0;z-index:10;background:#4472C4;color:#fff}
+#chargeTable{border-collapse:separate}
+</style>
+</head><body>
+<div id="loginBar" style="background:#1a5276;color:#fff;padding:6px 18px;display:flex;gap:12px;align-items:center;font-size:13px">
+<span>👤 <strong id="currentUserName" style="color:#8bc34a">未登录</strong></span>
+<button onclick="showLogin()" style="background:#2980b9;color:#fff;border:none;padding:3px 12px;border-radius:4px;cursor:pointer;font-size:12px">切换用户</button>
+<a href="/" style="color:#bbb;margin-left:auto;font-size:12px;text-decoration:none">看板 →</a>
+<a href="/电费支出给国网.html" style="color:#bbb;font-size:12px;text-decoration:none">电费支出 →</a>
+</div>
+<div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;justify-content:center;align-items:center">
+<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+<h3 style="margin-bottom:16px">选择用户</h3>
+<div id="userList" style="max-height:200px;overflow-y:auto;margin-bottom:12px"></div>
+<div style="display:flex;gap:8px"><input type="text" id="newUserName" placeholder="或输入新名字" style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:6px" onkeydown="if(event.key==='Enter')doLogin()"><button onclick="doLogin()" style="background:#2980b9;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">登录</button></div>
+<button onclick="document.getElementById('loginModal').style.display='none'" style="margin-top:8px;border:1px solid #ddd;background:#fff;padding:4px 12px;border-radius:4px;cursor:pointer">取消</button>
+</div></div>
+<div class="container">
+<div style="position:sticky;top:0;z-index:100;background:#f0f2f5;padding-bottom:4px">
+<div class="toolbar">
+<span class="info">共 <strong id="rowCount">0</strong> 行</span>
+<div class="month-picker" style="display:flex;align-items:center;gap:6px">
+<label>所属年月：</label>
+<div class="month-nav">
+  <button onclick="prevYear()" title="上一年">«</button>
+  <button onclick="prevMonth()" title="上一月">‹</button>
+  <span class="month-label" id="monthLabel">2026年05月</span>
+  <button onclick="nextMonth()" title="下一月">›</button>
+  <button onclick="nextYear()" title="下一年">»</button>
+</div>
+<input type="hidden" id="globalMonth" value="">
+</div>
+<button class="btn btn-sm on" id="bindToggleBtn" onclick="TB()">🔗 绑定带出：开</button>
+<span class="info">输入自动联想 | 大小写不敏感 | ↓键选择</span>
+<span class="info" id="matchStats"></span>
+<div style="flex:1"></div>
+<button class="btn btn-outline btn-sm" onclick="AR(10)">＋10行</button>
+<button class="btn btn-outline btn-sm" onclick="CA()">清空</button>
+<button class="btn btn-warning btn-sm" onclick="LD()">载入上月</button>
+<button class="btn btn-outline btn-sm" onclick="SV()">保存当前</button>
+</div>
+<div style="display:flex;gap:8px;padding:6px 18px;background:#fff;border-radius:0 0 8px 8px;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+<button class="btn btn-primary" id="validateBtn" onclick="VA()">校验数据</button>
+<button class="btn btn-warning" onclick="uploadToDB()">上传数据库</button>
+<button class="btn btn-outline" onclick="checkMeterChanges()">检查户号变更</button>
+<button class="btn btn-outline" onclick="undoLastUpload()">撤销上次上传</button>
+<button class="btn btn-success" onclick="exportWithNormMonth()">导出 Excel</button>
+</div>
+<div class="table-wrap"><table id="chargeTable" style="width:100%">
+<colgroup>
+<col style="width:36px">
+<col style="width:200px">
+<col style="width:90px">
+<col style="width:200px">
+<col style="width:280px">
+<col style="width:120px">
+<col style="width:120px">
+<col style="width:160px">
+<col style="width:50px">
+</colgroup>
+<thead>
+<tr style="position:sticky;top:0;z-index:10;background:#4472C4;color:#fff;font-weight:bold;font-size:13px">
+<td style="padding:10px 4px;text-align:left;white-space:nowrap">序号</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">户号</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">产权</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">安装地点</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">缴费企业</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">电费金额(元)</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">电量度数(kWh)</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap">备注</td>
+<td style="padding:10px 6px;text-align:left;white-space:nowrap"></td>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table></div>
+<div class="validation-panel" id="valPanel"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
+// ===== Auth =====
+function showLogin(){
+  fetch('/api/auth/users').then(function(r){return r.json();}).then(function(users){
+    var h=''; users.forEach(function(u){ h+='<div style="padding:6px;cursor:pointer;border-radius:4px" onclick="selectUser(\''+u.name+'\')" onmouseover="this.style.background=\'#e8f0f8\'" onmouseout="this.style.background=\'\'">'+u.name+'</div>'; });
+    document.getElementById('userList').innerHTML=h||'<div style="color:#999">暂无用户</div>';
+    document.getElementById('loginModal').style.display='flex';
+  });
+}
+function selectUser(name){ document.getElementById('newUserName').value=name; doLogin(); }
+function doLogin(){
+  var name=document.getElementById('newUserName').value.trim(); if(!name)return;
+  fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name})})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.success){ document.getElementById('currentUserName').textContent=d.user_name; document.getElementById('loginModal').style.display='none'; location.reload(); }
+  });
+}
+fetch('/api/auth/me').then(function(r){return r.json();}).then(function(d){
+  if(d.user_name) document.getElementById('currentUserName').textContent=d.user_name;
+});
+var D={"hl": ["[1100002327018]", "[1100002328736]", "[1100002328769]", "[1100002328770]", "[1100002328794]", "[1100002328822]", "[1100002328845]", "[1100002330237]", "[1100002330250]", "[1100002330254]", "[1100002332001]", "[1100002332122]", "[1100002332194]", "[1100002332339]", "[1100002332420]", "[1100002332537]", "[1100002332545]", "[1100002332814]", "[1100002333296]", "[1100002394363]", "[1100002396187]", "[1100002541365]", "[1100002672494]", "[1100003214972]", "[1100004223405]", "[1100007811119]", "[1100008731441]", "[1100015091808]", "[1100018893364]", "[1100021250297]", "[1100021531196]", "[1101036948784]", "[1101044904893]", "[1150000031728]", "[1150001507674]"], "ham": {"[1100002327018]": "众达特", "[1100002328736]": "大型轮胎厂（建工青年公寓）", "[1100002328769]": "有研粉末（鑫世纪学校）", "[1100002328770]": "雁阳汽配（城建中联康施工用）", "[1100002328794]": "天威院外（清平乐、明萌）", "[1100002328822]": "金台有色（东明）", "[1100002328845]": "飞勇科技", "[1100002330237]": "四维厂房（耐克森）", "[1100002330250]": "吉斯（钽钛）", "[1100002330254]": "热力西站", "[1100002332001]": "圣尼斯厂房（金鑫龙、怀羽）市场交易", "[1100002332122]": "威亚厂房（固芯能源）（伟业）", "[1100002332194]": "高山厂房（叁参）", "[1100002332339]": "祥雨汽配（祝成物业）", "[1100002332420]": "奇跃橡塑（晶达国际）", "[1100002332537]": "亚洲泵业（春风药业）（市场交易）", "[1100002332545]": "坤钢厂房", "[1100002332814]": "二商厂房630kVA（蒙毅、北珂、瑞成）", "[1100002333296]": "汤河口企业（中科长剑、）", "[1100002394363]": "7、8、9号厂房（市场交易）", "[1100002396187]": "胜利村委会（保安公司）", "[1100002541365]": "奥瑞金厂房（有研院）", "[1100002672494]": "奥康达", "[1100003214972]": "东1-2号厂房", "[1100004223405]": "雁栖创惠（青苗学校）", "[1100007811119]": "C区路口（聚火运动）", "[1100008731441]": "沙河路（中科佰能）", "[1100015091808]": "福利华厂房", "[1100018893364]": "警务工作站（建行、普麟淇）", "[1100021250297]": "瑞奥电气（品恩）", "[1100021531196]": "博萨北厂（建工）（市场交易）", "[1101036948784]": "众达特", "[1101044904893]": "碳纳米管厂房（市场交易）", "[1150000031728]": "雁栖中诚（二商配电室）中诚交", "[1150001507674]": "威亚厂房（固芯能源）中诚交"}, "hcq": {"[1100002327018]": "长城伟业", "[1100002328736]": "长城伟业", "[1100002328769]": "长城伟业", "[1100002328770]": "长城伟业", "[1100002328794]": "长城伟业", "[1100002328822]": "长城伟业", "[1100002328845]": "长城伟业", "[1100002330237]": "长城伟业", "[1100002330250]": "长城伟业", "[1100002330254]": "长城伟业", "[1100002332001]": "长城伟业", "[1100002332122]": "长城伟业", "[1100002332194]": "长城伟业", "[1100002332339]": "长城伟业", "[1100002332420]": "长城伟业", "[1100002332537]": "长城伟业", "[1100002332545]": "长城伟业", "[1100002332814]": "长城伟业", "[1100002333296]": "长城伟业", "[1100002394363]": "长城伟业", "[1100002396187]": "长城伟业", "[1100002541365]": "长城伟业", "[1100002672494]": "长城伟业", "[1100003214972]": "长城伟业", "[1100004223405]": "创惠", "[1100007811119]": "长城伟业", "[1100008731441]": "长城伟业", "[1100015091808]": "长城伟业", "[1100018893364]": "长城伟业", "[1100021250297]": "长城伟业", "[1100021531196]": "长城伟业", "[1101036948784]": "长城伟业", "[1101044904893]": "长城伟业", "[1150000031728]": "雁栖中诚", "[1150001507674]": "雁栖中诚"}, "hem": {"[1100002327018]": ["北京源都宏业物流有限公司怀柔分公司"], "[1100002328736]": ["北京金运通大型轮胎翻修有限公司", "北京国际建设集团有限公司"], "[1100002328769]": ["北京怀柔鑫世纪职业技能培训学校"], "[1100002328770]": ["北京城建集团有限责任公司"], "[1100002328794]": ["北京清平乐科技发展有限公司", "北京明萌建筑工程有限责任公司"], "[1100002328822]": ["东明兴业科技股份有限公司"], "[1100002328845]": ["飞勇科技（北京）有限公司"], "[1100002330237]": ["北京绿农康地生物工程技术研究有限公司", "耐柯森（北京）工业技术有限公司", "北京城建八建设发展有限责任公司", "本然天地医疗科技（北京）有限公司", "北京中歆源生物科技有限公司", "北京城建集团有限责任公司", "北京博瑞卫生消毒服务有限公司"], "[1100002330250]": ["北京钽钛精密科技有限公司"], "[1100002332001]": ["北京金鑫龙汽车配件制造有限公司", "北京怀羽体育俱乐部"], "[1100002332122]": ["北京建工集团有限责任公司", "北京固芯能源科技有限公司"], "[1100002332194]": ["北京叁参研学科技有限公司", "北京建工集团有限责任公司"], "[1100002332339]": ["北京怀柔祝成物业服务有限公司"], "[1100002332420]": ["北京明扬速达运输有限公司", "毅远（北京）国际供应链管理有限公司"], "[1100002332537]": ["北京春风药业有限公司"], "[1100002332545]": ["个人装修公司使用"], "[1100002332814]": ["虚壹静几科技(北京)有限公司", "北京怀柔北珂新能源科技有限公司", "北京瑞成医疗器械有限公司", "北京炎和科技有限公司", "北京鼎味晟兴餐饮管理有限公司", "北京星鑫科技有限公司", "北京大华博科智能科技有限公司", "国联汽车动力电池研究院有限责任公司", "国标（北京）检验认证有限公司", "北京建工集团有限责任公司", "蒙毅智能系统（北京）有限公司"], "[1100002333296]": ["北京中科长剑环境治理技术有限责任公司", "北京熊洞智服科技有限公司"], "[1100002394363]": ["中固时代（北京）新能源科技有限公司", "北京航宇恒先科技有限公司", "海普欧泰克液压设备（北京）股份有限公司", "北京北方国能科技有限公司", "中国科学院过程工程研究所", "中国科学院力学研究所", "国标（北京）检验认证有限公司", "北京建工集团有限责任公司"], "[1100002396187]": ["北京安泰保安服务有限公司"], "[1100002541365]": ["北京卓瑞盈科技发展有限公司", "北京中科全泰科技发展有限公司", "有研工程技术研究院有限公司", "北自(北京)检测科技发展有限公司"], "[1100002672494]": ["国科怀栖（北京）智能科技有限公司"], "[1100007811119]": ["北京聚火空间体育文化发展有限公司"], "[1100008731441]": ["北京中盛宏创建设工程有限公司", "中铁十六局集团有限公司", "中科佰能科技股份有限公司"], "[1100015091808]": ["北京悠智航宇科技有限公司"], "[1100018893364]": ["北京普麟淇贸易有限公司", "中国建设银行股份有限公司北京市分行"], "[1100021250297]": ["北京品恩智赋安防科技服务有限公司"], "[1100021531196]": ["北京建工集团有限责任公司"], "[1101036948784]": ["北京源都宏业物流有限公司怀柔分公司"], "[1101044904893]": ["中科艾科米（北京）科技有限公司", "北京旷亿拓元科技有限公司", "中科量仪（北京）科技有限公司", "中科星动力（北京）科技有限公司", "北京芯北智科技有限公司", "中国科学院力学研究所（梯度仪）"], "[1100003214972]": ["北京城建集团有限责任公司"], "[1100004223405]": ["北京市怀柔区青苗学校"], "[1150000031728]": ["北京大华博科智能科技有限公司", "虚壹静几科技（北京）有限公司", "北京怀柔北珂新能源科技有限公司", "北京瑞成医疗器械有限公司", "北京鼎味晟兴餐饮管理有限公司", "北京星鑫科技有限公司", "国联汽车动力电池研究院有限责任公司", "国标（北京）检验认证有限公司", "北京丘比食品有限公司", "中固时代（北京）新能源科技有限公司"], "[1150001507674]": ["北京固芯能源科技有限公司", "北京建工集团有限责任公司"], "[1100002330254]": ["北京科卫临床诊断试剂有限公司"]}, "el": ["东明兴业科技股份有限公司", "个人装修公司使用", "中固时代（北京）新能源科技有限公司", "中国建设银行股份有限公司北京市分行", "中国科学院力学研究所", "中国科学院力学研究所（梯度仪）", "中国科学院过程工程研究所", "中科佰能科技股份有限公司", "中科星动力（北京）科技有限公司", "中科艾科米（北京）科技有限公司", "中科量仪（北京）科技有限公司", "中铁十六局集团有限公司", "北京丘比食品有限公司", "北京中歆源生物科技有限公司", "北京中盛宏创建设工程有限公司", "北京中科全泰科技发展有限公司", "北京中科长剑环境治理技术有限责任公司", "北京北方国能科技有限公司", "北京卓瑞盈科技发展有限公司", "北京博瑞卫生消毒服务有限公司", "北京叁参研学科技有限公司", "北京品恩智赋安防科技服务有限公司", "北京固芯能源科技有限公司", "北京国际建设集团有限公司", "北京城建八建设发展有限责任公司", "北京城建集团有限责任公司", "北京大华博科智能科技有限公司", "北京安泰保安服务有限公司", "北京市怀柔区青苗学校", "北京建工集团有限责任公司", "北京怀柔北珂新能源科技有限公司", "北京怀柔祝成物业服务有限公司", "北京怀柔鑫世纪职业技能培训学校", "北京怀羽体育俱乐部", "北京悠智航宇科技有限公司", "北京旷亿拓元科技有限公司", "北京明扬速达运输有限公司", "北京明萌建筑工程有限责任公司", "北京星鑫科技有限公司", "北京春风药业有限公司", "北京普麟淇贸易有限公司", "北京清平乐科技发展有限公司", "北京源都宏业物流有限公司怀柔分公司", "北京炎和科技有限公司", "北京熊洞智服科技有限公司", "北京瑞成医疗器械有限公司", "北京科卫临床诊断试剂有限公司", "北京绿农康地生物工程技术研究有限公司", "北京聚火空间体育文化发展有限公司", "北京航宇恒先科技有限公司", "北京芯北智科技有限公司", "北京金运通大型轮胎翻修有限公司", "北京金鑫龙汽车配件制造有限公司", "北京钽钛精密科技有限公司", "北京鼎味晟兴餐饮管理有限公司", "北自(北京)检测科技发展有限公司", "国标（北京）检验认证有限公司", "国科怀栖（北京）智能科技有限公司", "国联汽车动力电池研究院有限责任公司", "有研工程技术研究院有限公司", "本然天地医疗科技（北京）有限公司", "毅远（北京）国际供应链管理有限公司", "海普欧泰克液压设备（北京）股份有限公司", "耐柯森（北京）工业技术有限公司", "蒙毅智能系统（北京）有限公司", "虚壹静几科技(北京)有限公司", "虚壹静几科技（北京）有限公司", "飞勇科技（北京）有限公司"], "al": ["7、8、9号厂房（市场交易）", "C区路口（聚火运动）", "东1-2号厂房", "二商厂房630kVA（蒙毅、北珂、瑞成）", "亚洲泵业（春风药业）（市场交易）", "众达特", "博萨北厂（建工）（市场交易）", "吉斯（钽钛）", "四维厂房（耐克森）", "圣尼斯厂房（金鑫龙、怀羽）市场交易", "坤钢厂房", "大型轮胎厂（建工青年公寓）", "天威院外（清平乐、明萌）", "奇跃橡塑（晶达国际）", "奥康达", "奥瑞金厂房（有研院）", "威亚厂房（固芯能源）中诚交", "威亚厂房（固芯能源）（伟业）", "有研粉末（鑫世纪学校）", "汤河口企业（中科长剑、）", "沙河路（中科佰能）", "热力西站", "瑞奥电气（品恩）", "碳纳米管厂房（市场交易）", "祥雨汽配（祝成物业）", "福利华厂房", "胜利村委会（保安公司）", "警务工作站（建行、普麟淇）", "金台有色（东明）", "雁栖中诚（二商配电室）中诚交", "雁栖创惠（青苗学校）", "雁阳汽配（城建中联康施工用）", "飞勇科技", "高山厂房（叁参）"], "e2h": {"北京源都宏业物流有限公司怀柔分公司": [{"hao": "[1100002327018]", "addr": "众达特"}, {"hao": "[1101036948784]", "addr": "众达特"}], "北京金运通大型轮胎翻修有限公司": [{"hao": "[1100002328736]", "addr": "大型轮胎厂（建工青年公寓）"}], "北京国际建设集团有限公司": [{"hao": "[1100002328736]", "addr": "大型轮胎厂（建工青年公寓）"}], "北京怀柔鑫世纪职业技能培训学校": [{"hao": "[1100002328769]", "addr": "有研粉末（鑫世纪学校）"}], "北京城建集团有限责任公司": [{"hao": "[1100002328770]", "addr": "雁阳汽配（城建中联康施工用）"}, {"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}, {"hao": "[1100003214972]", "addr": "东1-2号厂房"}], "北京清平乐科技发展有限公司": [{"hao": "[1100002328794]", "addr": "天威院外（清平乐、明萌）"}], "北京明萌建筑工程有限责任公司": [{"hao": "[1100002328794]", "addr": "天威院外（清平乐、明萌）"}], "东明兴业科技股份有限公司": [{"hao": "[1100002328822]", "addr": "金台有色（东明）"}], "飞勇科技（北京）有限公司": [{"hao": "[1100002328845]", "addr": "飞勇科技"}], "北京绿农康地生物工程技术研究有限公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "耐柯森（北京）工业技术有限公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "北京城建八建设发展有限责任公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "本然天地医疗科技（北京）有限公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "北京中歆源生物科技有限公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "北京博瑞卫生消毒服务有限公司": [{"hao": "[1100002330237]", "addr": "四维厂房（耐克森）"}], "北京钽钛精密科技有限公司": [{"hao": "[1100002330250]", "addr": "吉斯（钽钛）"}], "北京金鑫龙汽车配件制造有限公司": [{"hao": "[1100002332001]", "addr": "圣尼斯厂房（金鑫龙、怀羽）市场交易"}], "北京怀羽体育俱乐部": [{"hao": "[1100002332001]", "addr": "圣尼斯厂房（金鑫龙、怀羽）市场交易"}], "北京建工集团有限责任公司": [{"hao": "[1100002332122]", "addr": "威亚厂房（固芯能源）（伟业）"}, {"hao": "[1100002332194]", "addr": "高山厂房（叁参）"}, {"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}, {"hao": "[1100021531196]", "addr": "博萨北厂（建工）（市场交易）"}, {"hao": "[1150001507674]", "addr": "威亚厂房（固芯能源）中诚交"}], "北京固芯能源科技有限公司": [{"hao": "[1100002332122]", "addr": "威亚厂房（固芯能源）（伟业）"}, {"hao": "[1150001507674]", "addr": "威亚厂房（固芯能源）中诚交"}], "北京叁参研学科技有限公司": [{"hao": "[1100002332194]", "addr": "高山厂房（叁参）"}], "北京怀柔祝成物业服务有限公司": [{"hao": "[1100002332339]", "addr": "祥雨汽配（祝成物业）"}], "北京明扬速达运输有限公司": [{"hao": "[1100002332420]", "addr": "奇跃橡塑（晶达国际）"}], "毅远（北京）国际供应链管理有限公司": [{"hao": "[1100002332420]", "addr": "奇跃橡塑（晶达国际）"}], "北京春风药业有限公司": [{"hao": "[1100002332537]", "addr": "亚洲泵业（春风药业）（市场交易）"}], "个人装修公司使用": [{"hao": "[1100002332545]", "addr": "坤钢厂房"}], "虚壹静几科技(北京)有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}], "北京怀柔北珂新能源科技有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京瑞成医疗器械有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京炎和科技有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}], "北京鼎味晟兴餐饮管理有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京星鑫科技有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京大华博科智能科技有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "国联汽车动力电池研究院有限责任公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "国标（北京）检验认证有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}, {"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "蒙毅智能系统（北京）有限公司": [{"hao": "[1100002332814]", "addr": "二商厂房630kVA（蒙毅、北珂、瑞成）"}], "北京中科长剑环境治理技术有限责任公司": [{"hao": "[1100002333296]", "addr": "汤河口企业（中科长剑、）"}], "北京熊洞智服科技有限公司": [{"hao": "[1100002333296]", "addr": "汤河口企业（中科长剑、）"}], "中固时代（北京）新能源科技有限公司": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}, {"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京航宇恒先科技有限公司": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}], "海普欧泰克液压设备（北京）股份有限公司": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}], "北京北方国能科技有限公司": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}], "中国科学院过程工程研究所": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}], "中国科学院力学研究所": [{"hao": "[1100002394363]", "addr": "7、8、9号厂房（市场交易）"}], "北京安泰保安服务有限公司": [{"hao": "[1100002396187]", "addr": "胜利村委会（保安公司）"}], "北京卓瑞盈科技发展有限公司": [{"hao": "[1100002541365]", "addr": "奥瑞金厂房（有研院）"}], "北京中科全泰科技发展有限公司": [{"hao": "[1100002541365]", "addr": "奥瑞金厂房（有研院）"}], "有研工程技术研究院有限公司": [{"hao": "[1100002541365]", "addr": "奥瑞金厂房（有研院）"}], "北自(北京)检测科技发展有限公司": [{"hao": "[1100002541365]", "addr": "奥瑞金厂房（有研院）"}], "国科怀栖（北京）智能科技有限公司": [{"hao": "[1100002672494]", "addr": "奥康达"}], "北京聚火空间体育文化发展有限公司": [{"hao": "[1100007811119]", "addr": "C区路口（聚火运动）"}], "北京中盛宏创建设工程有限公司": [{"hao": "[1100008731441]", "addr": "沙河路（中科佰能）"}], "中铁十六局集团有限公司": [{"hao": "[1100008731441]", "addr": "沙河路（中科佰能）"}], "中科佰能科技股份有限公司": [{"hao": "[1100008731441]", "addr": "沙河路（中科佰能）"}], "北京悠智航宇科技有限公司": [{"hao": "[1100015091808]", "addr": "福利华厂房"}], "北京普麟淇贸易有限公司": [{"hao": "[1100018893364]", "addr": "警务工作站（建行、普麟淇）"}], "中国建设银行股份有限公司北京市分行": [{"hao": "[1100018893364]", "addr": "警务工作站（建行、普麟淇）"}], "北京品恩智赋安防科技服务有限公司": [{"hao": "[1100021250297]", "addr": "瑞奥电气（品恩）"}], "中科艾科米（北京）科技有限公司": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "北京旷亿拓元科技有限公司": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "中科量仪（北京）科技有限公司": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "中科星动力（北京）科技有限公司": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "北京芯北智科技有限公司": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "中国科学院力学研究所（梯度仪）": [{"hao": "[1101044904893]", "addr": "碳纳米管厂房（市场交易）"}], "北京市怀柔区青苗学校": [{"hao": "[1100004223405]", "addr": "雁栖创惠（青苗学校）"}], "虚壹静几科技（北京）有限公司": [{"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京丘比食品有限公司": [{"hao": "[1150000031728]", "addr": "雁栖中诚（二商配电室）中诚交"}], "北京科卫临床诊断试剂有限公司": [{"hao": "[1100002330254]", "addr": "热力西站"}]}, "a2h": {"众达特": ["[1100002327018]", "[1101036948784]"], "大型轮胎厂（建工青年公寓）": ["[1100002328736]"], "有研粉末（鑫世纪学校）": ["[1100002328769]"], "雁阳汽配（城建中联康施工用）": ["[1100002328770]"], "天威院外（清平乐、明萌）": ["[1100002328794]"], "金台有色（东明）": ["[1100002328822]"], "飞勇科技": ["[1100002328845]"], "四维厂房（耐克森）": ["[1100002330237]"], "吉斯（钽钛）": ["[1100002330250]"], "圣尼斯厂房（金鑫龙、怀羽）市场交易": ["[1100002332001]"], "威亚厂房（固芯能源）（伟业）": ["[1100002332122]"], "高山厂房（叁参）": ["[1100002332194]"], "祥雨汽配（祝成物业）": ["[1100002332339]"], "奇跃橡塑（晶达国际）": ["[1100002332420]"], "亚洲泵业（春风药业）（市场交易）": ["[1100002332537]"], "坤钢厂房": ["[1100002332545]"], "二商厂房630kVA（蒙毅、北珂、瑞成）": ["[1100002332814]"], "汤河口企业（中科长剑、）": ["[1100002333296]"], "7、8、9号厂房（市场交易）": ["[1100002394363]"], "胜利村委会（保安公司）": ["[1100002396187]"], "奥瑞金厂房（有研院）": ["[1100002541365]"], "奥康达": ["[1100002672494]"], "C区路口（聚火运动）": ["[1100007811119]"], "沙河路（中科佰能）": ["[1100008731441]"], "福利华厂房": ["[1100015091808]"], "警务工作站（建行、普麟淇）": ["[1100018893364]"], "瑞奥电气（品恩）": ["[1100021250297]"], "博萨北厂（建工）（市场交易）": ["[1100021531196]"], "碳纳米管厂房（市场交易）": ["[1101044904893]"], "东1-2号厂房": ["[1100003214972]"], "雁栖创惠（青苗学校）": ["[1100004223405]"], "雁栖中诚（二商配电室）中诚交": ["[1150000031728]"], "威亚厂房（固芯能源）中诚交": ["[1150001507674]"], "热力西站": ["[1100002330254]"]}, "cl": ["丰顺华达", "创惠", "房地产", "长城伟业", "雁栖中诚"]};
+var HL=D.hl,HAM=D.ham,HCQ=D.hcq,HEM=D.hem;
+var EL=D.el,AL=D.al,CL=D.cl;
+var E2H=D.e2h,A2H=D.a2h;
+var MS=[],BE=true;
+MS=[];for(var y=25;y<=27;y++)for(var m=1;m<=12;m++)MS.push(y+'年'+('0'+m).slice(-2)+'月');
+
+function TB(){
+  BE=!BE;var b=document.getElementById('bindToggleBtn');
+  if(BE){b.innerHTML='\u{1f517} 绑定带出：开';b.classList.add('on');ST('绑定带出已打开','success');}
+  else{b.innerHTML='\u{1f517} 绑定带出：关';b.classList.remove('on');ST('绑定带出已关闭','warn');}
+}
+
+function N(s){return(s||'').toLowerCase().replace(/[()\s\[\]·]/g,'');}
+function FM(i,c){
+  if(!i||!i.trim())return[];var n=N(i),r=[];
+  for(var j=0;j<c.length;j++){var nc=N(c[j]),p=0,ok=true;
+    for(var k=0;k<n.length;k++){p=nc.indexOf(n[k],p);if(p===-1){ok=false;break;}p++;}
+    if(ok)r.push(c[j]);
+  }
+  return r.slice(0,25);
+}
+
+(function initM(){
+  var now=new Date();
+  window._curYear=now.getFullYear();
+  window._curMonth=now.getMonth()+1;
+  updateMonthDisplay();
+})();
+function updateMonthDisplay(){
+  var y=window._curYear, m=window._curMonth;
+  document.getElementById('monthLabel').textContent=y+'年'+('0'+m).slice(-2)+'月';
+  var dm=String(y).slice(-2)+'年'+('0'+m).slice(-2)+'月';
+  document.getElementById('globalMonth').value=dm;
+}
+function prevMonth(){window._curMonth--;if(window._curMonth<1){window._curMonth=12;window._curYear--;}updateMonthDisplay();}
+function nextMonth(){window._curMonth++;if(window._curMonth>12){window._curMonth=1;window._curYear++;}updateMonthDisplay();}
+function prevYear(){window._curYear--;updateMonthDisplay();}
+function nextYear(){window._curYear++;updateMonthDisplay();}
+
+var RI=1;
+function MR(){
+  var id=RI++;var t=document.createElement('tr');
+  t.innerHTML='<td class="rownum">'+id+'</td>'+
+  '<td><div class="input-wrap"><input class="hao-input" data-row="'+id+'" data-field="hao" placeholder="输入或选择..." autocomplete="off"><button class="dropdown-btn" type="button" onclick="TD(this,\'hao\')">\u25bc</button></div><div class="suggestions"></div></td>'+
+  '<td><div class="input-wrap"><input class="cq-input" data-row="'+id+'" data-field="cq" placeholder="输入或选择..." autocomplete="off"><button class="dropdown-btn" type="button" onclick="TD(this,\'cq\')">\u25bc</button></div><div class="suggestions"></div></td>'+
+  '<td><div class="input-wrap"><input class="addr-input" data-row="'+id+'" data-field="addr" placeholder="输入或选择..." autocomplete="off"><button class="dropdown-btn" type="button" onclick="TD(this,\'addr\')">\u25bc</button></div><div class="suggestions"></div></td>'+
+  '<td><div class="input-wrap"><input class="ent-input" data-row="'+id+'" data-field="ent" placeholder="输入或选择..." autocomplete="off"><button class="dropdown-btn" type="button" onclick="TD(this,\'ent\')">\u25bc</button></div><div class="suggestions"></div></td>'+
+  '<td><input class="amount-input" data-row="'+id+'" data-field="amount" type="number" min="0" step="0.01" placeholder="0"></td>'+
+  '<td><input class="kwh-input" data-row="'+id+'" data-field="kwh" type="number" min="0" step="0.01" placeholder="0"></td>'+
+  '<td><input class="remark-input" data-row="'+id+'" data-field="remark" placeholder="备注..." type="text"></td>'+
+  '<td style="text-align:center"><button class="del-btn" onclick="DR(this)">\u5220\u9664</button></td>';
+  return t;
+}
+
+function AR(n){var tb=document.getElementById('tableBody');for(var i=0;i<n;i++)tb.appendChild(MR());BA();UC();}
+function DR(b){if(document.querySelectorAll('#tableBody tr').length<=1)return ST('\u81f3\u5c11\u4fdd\u7559\u4e00\u884c','warn');b.closest('tr').remove();RN();UC();}
+function CA(){if(!confirm('\u786e\u5b9a\u6e05\u7a7a\u6240\u6709\u6570\u636e\uff1f'))return;document.getElementById('tableBody').innerHTML='';RI=1;AR(50);}
+function RN(){var i=1;document.querySelectorAll('#tableBody tr').forEach(function(t){t.querySelector('.rownum').textContent=i++;});}
+function UC(){document.getElementById('rowCount').textContent=document.querySelectorAll('#tableBody tr').length;}
+
+function GC(f,h){
+  if(f==='hao')return HL;if(f==='cq')return CL;if(f==='addr')return AL;
+  if(f==='ent'){if(h&&HEM[h]&&HEM[h].length>0)return HEM[h];return EL;}
+  return[];
+}
+
+function RS(i,f){
+  var td=i.closest('td');if(!td)return;var sd=td.querySelector('.suggestions');if(!sd)return;
+  var v=i.value.trim();var tr=i.closest('tr');var hi=tr.querySelector('.hao-input');var hv=hi?hi.value.trim():'';
+  var cs=GC(f,hv);
+  if(!v){
+    sd.innerHTML=cs.slice(0,25).map(function(c){return '<div class="sug-item">'+EH(c)+'</div>';}).join('');
+    if(cs.length>25)sd.innerHTML+='<div class="sug-item no-match">...\u5171'+cs.length+'\u9879</div>';
+  }else{
+    var m=FM(v,cs);
+    if(m.length===0)sd.innerHTML='<div class="sug-item no-match">\u65e0\u5339\u914d\uff0c\u5c06\u4f5c\u4e3a\u624b\u52a8\u8f93\u5165</div>';
+    else sd.innerHTML=m.map(function(c){return '<div class="sug-item">'+EH(c)+'</div>';}).join('');
+  }
+  AC(sd,i,f);
+}
+
+function AC(sd,i,f){
+  sd.querySelectorAll('.sug-item:not(.no-match)').forEach(function(e){
+    e.addEventListener('mousedown',function(ev){ev.preventDefault();PS(i,this.textContent,f);sd.classList.remove('show');});
+  });
+}
+
+function PS(i,v,f){
+  i.value=v;i.classList.add('matched');i.classList.remove('unmatched');
+  if(!BE)return;
+  var tr=i.closest('tr');
+  if(f==='hao'){FA(tr,v);CE(tr,v);}
+  else if(f==='ent'){FE(tr,v);}
+  else if(f==='addr'){FD(tr,v);}
+}
+
+function FA(tr,h){
+  var ci=tr.querySelector('.cq-input'),ai=tr.querySelector('.addr-input');
+  var cq=HCQ[h]||'',addr=HAM[h]||'';
+  if(ci){ci.value=cq;ci.classList.add('matched');ci.classList.remove('unmatched');}
+  if(ai&&addr){ai.value=addr;ai.classList.add('matched');ai.classList.remove('unmatched');}
+}
+
+function CE(tr,h){
+  var ei=tr.querySelector('.ent-input');
+  if(ei&&ei.value.trim()){var eh=HEM[h];if(eh&&eh.length>0&&eh.indexOf(ei.value.trim())===-1){ei.value='';ei.classList.remove('matched','unmatched');}}
+}
+
+function FE(tr,e){
+  var hi=tr.querySelector('.hao-input');var ps=E2H[e];
+  if(!ps||ps.length===0)return;
+  var seen={},uq=[];ps.forEach(function(p){if(!seen[p.hao]){seen[p.hao]=true;uq.push(p);}});
+  if(uq.length===1){var h=uq[0].hao;hi.value=h;hi.classList.add('matched');hi.classList.remove('unmatched');FA(tr,h);}
+  else{showHaoPicker(tr,uq,e);}
+}
+
+function FD(tr,a){
+  var hi=tr.querySelector('.hao-input');var hs=A2H[a];
+  if(!hs||hs.length===0)return;
+  var uq=[];hs.forEach(function(h){if(uq.indexOf(h)===-1)uq.push(h);});
+  if(uq.length===1){var h=uq[0];hi.value=h;hi.classList.add('matched');hi.classList.remove('unmatched');FA(tr,h);}
+  else{showAddrHaoPicker(tr,uq,a);}
+}
+
+function showHaoPicker(tr,pairs,entName){
+  var ov=document.createElement('div');ov.className='modal-overlay';ov.id='haoPickerOverlay';
+  var h='<div class="modal-box"><h3>\u4f01\u4e1a "'+EH(entName)+'" \u5bf9\u5e94\u591a\u4e2a\u6237\u53f7\uff0c\u8bf7\u9009\u62e9\uff1a</h3>';
+  pairs.forEach(function(p){h+='<div class="modal-row" data-hao="'+EH(p.hao)+'"><strong>'+EH(p.hao)+'</strong><div class="detail">'+EH(p.addr||'')+'</div></div>';});
+  h+='<div style="text-align:right;margin-top:14px"><button class="btn btn-outline btn-sm" onclick="closePicker()">\u53d6\u6d88</button></div></div>';
+  ov.innerHTML=h;document.body.appendChild(ov);
+  ov.addEventListener('click',function(ev){if(!ev.target.closest('.modal-row')){closePicker();return;}var mr=ev.target.closest('.modal-row');var ha=mr.dataset.hao;
+    var hi=tr.querySelector('.hao-input');hi.value=ha;hi.classList.add('matched');hi.classList.remove('unmatched');FA(tr,ha);closePicker();});
+}
+
+function showAddrHaoPicker(tr,haos,addrName){
+  var ov=document.createElement('div');ov.className='modal-overlay';ov.id='haoPickerOverlay';
+  var h='<div class="modal-box"><h3>\u5730\u70b9 "'+EH(addrName)+'" \u5bf9\u5e94\u591a\u4e2a\u6237\u53f7\uff0c\u8bf7\u9009\u62e9\uff1a</h3>';
+  haos.forEach(function(h_){h+='<div class="modal-row" data-hao="'+EH(h_)+'"><strong>'+EH(h_)+'</strong><div class="detail">'+EH(HAM[h_]||'')+'</div></div>';});
+  h+='<div style="text-align:right;margin-top:14px"><button class="btn btn-outline btn-sm" onclick="closePicker()">\u53d6\u6d88</button></div></div>';
+  ov.innerHTML=h;document.body.appendChild(ov);
+  ov.addEventListener('click',function(ev){if(!ev.target.closest('.modal-row')){closePicker();return;}var mr=ev.target.closest('.modal-row');var ha=mr.dataset.hao;
+    var hi=tr.querySelector('.hao-input');hi.value=ha;hi.classList.add('matched');hi.classList.remove('unmatched');FA(tr,ha);closePicker();});
+}
+
+function closePicker(){var ov=document.getElementById('haoPickerOverlay');if(ov)ov.remove();}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closePicker();});
+
+function AFH(i){
+  if(!BE)return;var v=i.value.trim();if(!v||HL.indexOf(v)===-1)return;var tr=i.closest('tr');
+  FA(tr,v);CE(tr,v);i.classList.add('matched');i.classList.remove('unmatched');
+}
+
+function TD(b,f){
+  var i=b.closest('.input-wrap').querySelector('input');var sd=b.closest('td').querySelector('.suggestions');
+  if(sd.classList.contains('show')){sd.classList.remove('show');return;}
+  document.querySelectorAll('.suggestions.show').forEach(function(s){s.classList.remove('show');});
+  RS(i,f);sd.classList.add('show');sd.dataset.index='-1';
+}
+
+function EH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function SI(i,f){
+  if(i._bound)return;i._bound=true;
+  i.addEventListener('input',function(){
+    var sd=this.closest('td').querySelector('.suggestions');RS(this,f);
+    if(!sd.classList.contains('show'))sd.classList.add('show');
+    if(f==='hao'&&BE){var v=this.value.trim();if(v&&HL.indexOf(v)>=0)AFH(this);}
+    if(f==='ent'&&BE){var v=this.value.trim();if(v&&EL.indexOf(v)>=0){var tr=this.closest('tr');FE(tr,v);}}
+    if(f==='addr'&&BE){var v=this.value.trim();if(v&&AL.indexOf(v)>=0){var tr=this.closest('tr');FD(tr,v);}}
+  });
+  i.addEventListener('focus',function(){var sd=this.closest('td').querySelector('.suggestions');RS(this,f);sd.classList.add('show');});
+  i.addEventListener('blur',function(){var t=this;setTimeout(function(){var sd=t.closest('td').querySelector('.suggestions');if(sd)sd.classList.remove('show');},250);});
+  i.addEventListener('keydown',function(e){
+    var sd=this.closest('td').querySelector('.suggestions');if(!sd||!sd.classList.contains('show'))return;
+    var items=sd.querySelectorAll('.sug-item:not(.no-match)');var idx=parseInt(sd.dataset.index||'-1');
+    if(e.key==='ArrowDown'||e.key==='ArrowUp')e.preventDefault();
+    if(e.key==='ArrowDown'){idx=Math.min(idx+1,items.length-1);sd.dataset.index=idx;items.forEach(function(it,i){it.classList.toggle('active',i===idx);});}
+    else if(e.key==='ArrowUp'){idx=Math.max(idx-1,-1);sd.dataset.index=idx;items.forEach(function(it,i){it.classList.toggle('active',i===idx);});}
+    else if(e.key==='Enter'){e.preventDefault();if(idx>=0&&items[idx]){PS(this,items[idx].textContent,f);sd.classList.remove('show');}}
+    else if(e.key==='Escape'){sd.classList.remove('show');}
+  });
+  if(f==='hao'){i.addEventListener('paste',function(){var t=this;setTimeout(function(){AFH(t);},50);});}
+}
+
+function BA(){
+  document.querySelectorAll('#tableBody tr').forEach(function(tr){
+    var hi=tr.querySelector('.hao-input'),ci=tr.querySelector('.cq-input'),ai=tr.querySelector('.addr-input'),ei=tr.querySelector('.ent-input');
+    SI(hi,'hao');SI(ci,'cq');SI(ai,'addr');SI(ei,'ent');
+  });
+}
+
+function VA(){
+  var p=document.getElementById('valPanel');var m=document.getElementById('globalMonth').value;
+  var ok=0,err=0,ei=[];
+  if(!m){p.innerHTML='<div class="val-summary err">\u8bf7\u5148\u9009\u62e9\u6240\u5c5e\u5e74\u6708</div>';p.classList.add('show');return;}
+  document.querySelectorAll('#tableBody tr').forEach(function(tr){
+    var ha=tr.querySelector('.hao-input').value.trim();var ad=tr.querySelector('.addr-input').value.trim();
+    var en=tr.querySelector('.ent-input').value.trim();var am=tr.querySelector('.amount-input').value;var kw=tr.querySelector('.kwh-input').value;
+    if(!ha&&!ad&&!en&&!am&&!kw){tr.className='';return;}
+    var rn=tr.querySelector('.rownum').textContent;var ms=[];
+    if(ha&&HL.indexOf(ha)===-1)ms.push('\u6237\u53f7\u672a\u5339\u914d');else if(ha)ok++;
+    if(ad&&AL.indexOf(ad)===-1)ms.push('\u5b89\u88c5\u5730\u70b9\u672a\u5339\u914d');else if(ad)ok++;
+    if(en){var em=false;if(ha&&HEM[ha]&&HEM[ha].length>0)em=HEM[ha].indexOf(en)>=0;else em=EL.indexOf(en)>=0;if(!em)ms.push('\u7f34\u8d39\u4f01\u4e1a\u672a\u5339\u914d');else ok++;}
+    if(!am&&!kw)ms.push('\u91d1\u989d/\u7535\u91cf\u81f3\u5c11\u586b\u4e00\u9879');
+    if(ms.length>0){
+      tr.className='error-row';var ed=tr.querySelector('.row-errors');
+      if(!ed){ed=document.createElement('div');ed.className='row-errors';tr.querySelectorAll('td')[5].appendChild(ed);}
+      ed.innerHTML=ms.map(function(_m){return '\u26a0 '+EH(_m);}).join('<br>');
+      ei.push({row:rn,msgs:ms});err+=ms.length;
+    }else{tr.className='ok-row';var ed=tr.querySelector('.row-errors');if(ed)ed.remove();}
+  });
+  document.getElementById('matchStats').textContent='\u5339\u914d:'+ok+' | \u95ee\u9898:'+err;
+  var h='';
+  if(err===0&&ok>0){h='<div class="val-summary ok">\u5168\u90e8\u901a\u8fc7\uff01\u5171 '+ok+' \u9879\u5339\u914d\uff0c\u6708\u4efd\uff1a'+m+'</div>';ST('\u5168\u90e8\u901a\u8fc7','success');}
+  else if(err>0){h='<div class="val-summary warn">\u53d1\u73b0 '+err+' \u4e2a\u95ee\u9898\uff0c'+ok+' \u9879\u901a\u8fc7</div>';ei.forEach(function(it){h+='<div class="val-item err"><strong>\u7b2c'+it.row+'\u884c\uff1a</strong>'+it.msgs.map(EH).join('\uff1b')+'</div>';});ST(err+'\u4e2a\u95ee\u9898\uff0c'+ok+'\u9879\u901a\u8fc7','warn');}
+  else{h='<div class="val-summary err">\u8fd8\u6ca1\u6709\u586b\u5199\u6570\u636e</div>';}
+  p.innerHTML=h;p.classList.add('show');
+}
+
+function EX(){
+  var m=document.getElementById('globalMonth').value;
+  if(!m){ST('\u8bf7\u5148\u9009\u62e9\u6240\u5c5e\u5e74\u6708','warn');return;}
+  var rs=[['\u5e8f\u53f7','\u6237\u53f7','\u4ea7\u6743','\u5b89\u88c5\u5730\u70b9','\u7f34\u8d39\u4f01\u4e1a','\u6240\u5c5e\u5e74\u6708','\u7535\u8d39\u91d1\u989d(\u5143)','\u7535\u91cf\u5ea6\u6570(kWh)','\u5907\u6ce8']];var idx=1;
+  document.querySelectorAll('#tableBody tr').forEach(function(tr){
+    var ha=tr.querySelector('.hao-input').value.trim();var cq=tr.querySelector('.cq-input').value.trim();
+    var ad=tr.querySelector('.addr-input').value.trim();var en=tr.querySelector('.ent-input').value.trim();
+    var am=tr.querySelector('.amount-input').value;var kw=tr.querySelector('.kwh-input').value;var rk=tr.querySelector('.remark-input').value.trim();
+    if(!ha&&!ad&&!en&&!am&&!kw)return;var a=parseFloat(am),k=parseFloat(kw);
+    rs.push([idx++,ha,cq,ad,en,m,isNaN(a)?'':a,isNaN(k)?'':k,rk]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rs);ws['!cols']=[{wch:8},{wch:22},{wch:12},{wch:35},{wch:45},{wch:14},{wch:18},{wch:18},{wch:28}];
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'\u6536\u8d39\u5f55\u5165');
+  var d=new Date();XLSX.writeFile(wb,'\u6536\u8d39\u5f55\u5165-'+d.getFullYear()+'\u5e74'+('0'+(d.getMonth()+1)).slice(-2)+'\u6708'+('0'+d.getDate()).slice(-2)+'\u65e5.xlsx');
+  ST('\u5df2\u5bfc\u51fa '+(rs.length-1)+' \u6761','success');
+}
+
+function ST(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;clearTimeout(t._timer);t._timer=setTimeout(function(){t.classList.remove('show');},2500);}
+document.addEventListener('click',function(e){if(!e.target.closest('.input-wrap')&&!e.target.closest('.suggestions')&&!e.target.closest('.modal-box')){document.querySelectorAll('.suggestions.show').forEach(function(s){s.classList.remove('show');});}});
+
+// ======== Excel批量粘贴 ========
+function handleBatchPaste(e){
+  var cd=e.clipboardData;if(!cd)return;
+  var text=cd.getData('text/plain');if(!text||text.indexOf('\t')===-1)return;
+  var lines=text.trim().split(/\r?\n/);if(lines.length<2)return;
+  e.preventDefault();
+  // 检测表头（第一行是否含"户号"/"金额"等关键字）
+  var hdr=lines[0].split('\t');
+  var cols={hao:-1,cq:-1,addr:-1,ent:-1,amt:-1,kwh:-1,rmk:-1,month:-1};
+  hdr.forEach(function(h,i){
+    var n=(h||'').replace(/^\s+|\s+$/g,'');
+    if(n.indexOf('\u6237\u53f7')>=0)cols.hao=i;
+    if(n.indexOf('\u4ea7\u6743')>=0)cols.cq=i;
+    if(n.indexOf('\u5730\u70b9')>=0||n.indexOf('\u5b89\u88c5')>=0)cols.addr=i;
+    if(n.indexOf('\u4f01\u4e1a')>=0||n.indexOf('\u7f34\u8d39')>=0)cols.ent=i;
+    if(n.indexOf('\u91d1\u989d')>=0||n.indexOf('\u7535\u8d39')>=0)cols.amt=i;
+    if(n.indexOf('\u7535\u91cf')>=0||n.indexOf('kWh')>=0)cols.kwh=i;
+    if(n.indexOf('\u5907\u6ce8')>=0)cols.rmk=i;
+    if(n.indexOf('\u5e74\u6708')>=0||n.indexOf('\u6708\u4efd')>=0)cols.month=i;
+  });
+  var hasHdr=cols.hao>=0||cols.ent>=0;
+  var start=hasHdr?1:0;
+  var tb=document.getElementById('tableBody');
+  var need=lines.length-start;
+  while(tb.children.length<need)tb.appendChild(MR());
+  BA();
+  var trs=tb.querySelectorAll('tr');
+  var filled=0;
+  for(var i=start;i<lines.length;i++){
+    var ri=i-start;if(ri>=trs.length)break;
+    var parts=lines[i].split('\t');var tr=trs[ri];
+    var map=hasHdr?cols:{hao:0,cq:1,addr:2,ent:3,amt:4,kwh:5,rmk:6};
+    setIf(tr,'hao',map.hao>=0?parts[map.hao]:'');
+    setIf(tr,'cq',map.cq>=0?parts[map.cq]:'');
+    setIf(tr,'addr',map.addr>=0?parts[map.addr]:'');
+    setIf(tr,'ent',map.ent>=0?parts[map.ent]:'');
+    setIf(tr,'amount',map.amt>=0?parts[map.amt]:'');
+    setIf(tr,'kwh',map.kwh>=0?parts[map.kwh]:'');
+    setIf(tr,'remark',map.rmk>=0?parts[map.rmk]:'');
+    if(map.month>=0&&parts[map.month]){
+      var mv=parts[map.month].trim();var ms=document.getElementById('globalMonth');
+      for(var j=0;j<ms.options.length;j++){if(ms.options[j].text.indexOf(mv.replace('\u5e74','\u5e74').replace('\u6708','\u6708'))>=0||ms.options[j].value.indexOf(mv)>=0){ms.value=ms.options[j].value;break;}}
+    }
+    filled++;
+  }
+  UC();
+  ST('已粘贴 '+filled+' 行','success');
+}
+function setIf(tr,field,val){
+  if(!val)return;var v=(val||'').replace(/^\s+|\s+$/g,'');if(!v)return;
+  var inp=tr.querySelector('.'+field+'-input');if(!inp)return;
+  inp.value=v;inp.classList.add('matched');inp.classList.remove('unmatched');
+  // 如果是户号，触发自动带出
+  if(field==='hao'&&BE){AFH(inp);}
+}
+document.addEventListener('paste',function(e){if(e.target.closest('.hao-input')||e.target.closest('.ent-input')||e.target.closest('.addr-input')||e.target.closest('.cq-input')){handleBatchPaste(e);}});
+
+// ======== 记忆功能 ========
+function SV(){
+  var rows=[];
+  document.querySelectorAll('#tableBody tr').forEach(function(tr){
+    var ha=tr.querySelector('.hao-input').value.trim();var cq=tr.querySelector('.cq-input').value.trim();
+    var ad=tr.querySelector('.addr-input').value.trim();var en=tr.querySelector('.ent-input').value.trim();
+    var am=tr.querySelector('.amount-input').value;var kw=tr.querySelector('.kwh-input').value;
+    var rk=tr.querySelector('.remark-input').value.trim();
+    if(!ha&&!ad&&!en)return;
+    rows.push({h:ha,c:cq,a:ad,e:en,amt:am,kwh:kw,rk:rk});
+  });
+  if(rows.length===0){ST('没有数据可保存','warn');return;}
+  var d={month:document.getElementById('globalMonth').value,rows:rows,time:new Date().toLocaleString('zh-CN')};
+  localStorage.setItem('shoufei_last',JSON.stringify(d));
+  ST('已保存 '+rows.length+' 行 ('+d.time+')','success');
+}
+
+function LD(){
+  var raw=localStorage.getItem('shoufei_last');
+  if(!raw){ST('没有历史记录，请先保存一次','warn');return;}
+  var d;try{d=JSON.parse(raw);}catch(e){ST('历史数据损坏','error');return;}
+  if(!d.rows||d.rows.length===0){ST('历史记录为空','warn');return;}
+  var msg='载入 '+d.rows.length+' 行历史数据？(保存于 '+d.time+')\n金额和电量将被清空，户号/产权/地点/企业/备注保留。\n输入新的金额和电量即可。';
+  if(!confirm(msg))return;
+  // 至少要 d.rows.length 行
+  var tb=document.getElementById('tableBody');
+  while(tb.children.length<d.rows.length)tb.appendChild(MR());
+  BA();
+  // 填入数据
+  var trs=tb.querySelectorAll('tr');
+  d.rows.forEach(function(r,i){
+    if(i>=trs.length)return;
+    var tr=trs[i];
+    var hi=tr.querySelector('.hao-input'),ci=tr.querySelector('.cq-input'),ai=tr.querySelector('.addr-input'),ei=tr.querySelector('.ent-input');
+    var ami=tr.querySelector('.amount-input'),kwi=tr.querySelector('.kwh-input'),rki=tr.querySelector('.remark-input');
+    if(hi){hi.value=r.h||'';hi.classList.add('matched');}
+    if(ci){ci.value=r.c||'';ci.classList.add('matched');}
+    if(ai){ai.value=r.a||'';ai.classList.add('matched');}
+    if(ei){ei.value=r.e||'';ei.classList.add('matched');}
+    if(ami)ami.value='';
+    if(kwi)kwi.value='';
+    if(rki)rki.value=r.rk||'';
+  });
+  UC();
+  ST('已载入 '+d.rows.length+' 行，请更新金额和电量','success');
+}
+
+AR(50);
+</script>
+<script>
+var _origST=ST;
+ST=function(msg,type){
+  _origST(msg,type);
+  var ms=document.getElementById("matchStats");
+  if(ms){ms.textContent=msg;ms.style.color=type==="error"?"#c0392b":type==="warn"?"#e67e22":"#27ae60";clearTimeout(ms._timer);ms._timer=setTimeout(function(){ms.textContent="";},5000);}
+};
+function normMonth(m){var p=m.match(/(\d{2})\u5e74(\d{2})\u6708/);if(p)return"20"+p[1]+"-"+p[2];return m;}
+function exportWithNormMonth(){
+  var sel=document.getElementById("globalMonth");
+  var m0=sel.value;
+  if(!m0){m0=sel.options&&sel.options.length>0?sel.options[0].value:"";}
+  if(!m0){ST("请先选择所属年月","warn");return;}
+  var m=normMonth(m0);
+  var rs=[["序号","户号","产权","安装地点","缴费企业","所属年月","电费金额(元)","电量度数(kWh)","备注"]];
+  var idx=1;
+  document.querySelectorAll("#tableBody tr").forEach(function(tr){
+    var ha=tr.querySelector(".hao-input").value.trim();
+    var cq=tr.querySelector(".cq-input").value.trim();
+    var ad=tr.querySelector(".addr-input").value.trim();
+    var en=tr.querySelector(".ent-input").value.trim();
+    var am=tr.querySelector(".amount-input").value;
+    var kw=tr.querySelector(".kwh-input").value;
+    var rk=tr.querySelector(".remark-input").value.trim();
+    if(!ha&&!ad&&!en&&!am&&!kw)return;
+    var a=parseFloat(am),k=parseFloat(kw);
+    rs.push([idx++,ha,cq,ad,en,m,isNaN(a)?"":a,isNaN(k)?"":k,rk]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rs);
+  ws["!cols"]=[{wch:8},{wch:22},{wch:12},{wch:35},{wch:45},{wch:14},{wch:18},{wch:18},{wch:28}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"转供电企业抄表录入");
+  var d=new Date();
+  XLSX.writeFile(wb,"转供电企业抄表录入-"+d.getFullYear()+"年"+("0"+(d.getMonth()+1)).slice(-2)+"月"+("0"+d.getDate()).slice(-2)+"日.xlsx");
+  ST("已导出 "+(rs.length-1)+" 条","success");
+}
+function getRowData(){
+  var rows=document.querySelectorAll("#tableBody tr");
+  var r=[];
+  for(var i=0;i<rows.length;i++){
+    var inp=rows[i].querySelectorAll("input");
+    if(inp.length<7)continue;
+    var hao=(inp[0]?inp[0].value:"").replace(/[\[\]]/g,"").trim();
+    var ent=inp[3]?inp[3].value.trim():"";
+    if(!hao&&!ent)continue;
+    r.push({hao:hao,entName:ent,feeAmount:parseFloat(inp[4]?inp[4].value:0)||0,kwhAmount:parseFloat(inp[5]?inp[5].value:0)||0});
+  }
+  return r;
+}
+async function checkMeterChanges(){
+  var m=normMonth(document.getElementById("globalMonth").value);
+  if(!m){ST("\u8bf7\u5148\u9009\u62e9\u6240\u5c5e\u5e74\u6708","error");return;}
+  var rows=getRowData().filter(function(r){return r.hao&&r.entName;});
+  if(rows.length===0){ST("\u8bf7\u5148\u586b\u5199\u6237\u53f7\u548c\u4f01\u4e1a\u540d\u79f0","error");return;}
+  try{
+    var resp=await fetch("/api/check_meter_changes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({month:m,rows:rows})});
+    var d=await resp.json();
+    if(d.conflicts&&d.conflicts.length>0){
+      var s=d.conflicts.map(function(c){return c.enterprise+"\n  \u586b\u5199: "+c.currentMeter+"\n  \u5386\u53f2: "+c.historicalMeter+" ("+c.lastMonth+")";}).join("\n\n");
+      ST("检测到 "+d.conflicts.length+" 个户号变更","warn");
+    }else if(d.warnings&&d.warnings.length>0){
+      ST("检查通过，可放心上传","success");
+      ST("\u68c0\u67e5\u901a\u8fc7","success");
+    }else{ST("\u68c0\u67e5\u901a\u8fc7\uff0c\u65e0\u6237\u53f7\u53d8\u66f4","success");}
+  }catch(e){ST("\u68c0\u67e5\u5931\u8d25: "+e.message,"error");}
+}
+async function uploadToDB(){
+  var m=normMonth(document.getElementById("globalMonth").value);
+  if(!m){ST("\u8bf7\u5148\u9009\u62e9\u6240\u5c5e\u5e74\u6708","error");return;}
+  VA();
+  var rows=getRowData();
+  var valid=rows.filter(function(r){return r.hao&&r.entName&&(r.feeAmount||r.kwhAmount);});
+  if(valid.length===0){ST("\u6ca1\u6709\u6709\u6548\u6570\u636e\u53ef\u4e0a\u4f20","error");return;}
+  try{
+    var resp=await fetch("/api/check_meter_changes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({month:m,rows:valid})});
+    var d=await resp.json();
+    var applyC=false;
+    if(d.conflicts&&d.conflicts.length>0){applyC=true;ST("检测到 "+d.conflicts.length+" 个户号变更，已自动同步","warn");}
+    var resp2=await fetch("/api/upload_charge",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({month:m,rows:valid,apply_meter_changes:applyC})});
+    var d2=await resp2.json();
+    if(d2.success){
+      ST("\u4e0a\u4f20\u6210\u529f\uff01\u5171 "+d2.count+" \u6761\uff0c\u5df2\u81ea\u52a8\u521b\u5efa\u5e94\u6536","success");
+      if(d2.changes&&d2.changes.length>0){ST("户号变更已同步: "+d2.changes.length+" 个","success");}
+      try{if(parent&&parent.loadStats)parent.loadStats();}catch(e){}
+    }else{ST("\u4e0a\u4f20\u5931\u8d25: "+d2.message,"error");}
+  }catch(e){ST("\u4e0a\u4f20\u5931\u8d25: "+e.message,"error");}
+}
+async function undoLastUpload(){
+  try{
+    var r1=await fetch("/api/upload_backups");
+    var d1=await r1.json();
+    if(!d1.backups||d1.backups.length===0){ST("\u6ca1\u6709\u53ef\u64a4\u9500\u7684\u4e0a\u4f20\u5907\u4efd","error");return;}
+    var h2='<div style="max-height:400px;overflow:auto"><p><strong>\u4e0a\u4f20\u5907\u4efd\u5386\u53f2\uff1a</strong></p>';
+    h2+='<table id="chargeTable" style="width:100%;font-size:13px;border-collapse:collapse">';
+    h2+='<tr style="background:#f0f0f0;font-weight:bold"><td style="padding:6px">\u65f6\u95f4</td><td style="padding:6px">\u5927\u5c0f</td><td style="padding:6px">\u8bb0\u5f55\u6570</td><td style="padding:6px">\u64cd\u4f5c</td></tr>';
+    for(var i=0;i<d1.backups.length;i++){
+      var b=d1.backups[i];
+      h2+='<tr style="border-bottom:1px solid #eee"><td style="padding:6px">'+b.time+'</td><td style="padding:6px">'+b.size+'</td><td style="padding:6px">'+b.records+'</td>';
+      h2+='<td style="padding:6px"><button class="btn btn-sm btn-outline" onclick="restoreBackup(\''+b.file+'\')">\u6062\u590d\u5230\u6b64\u7248\u672c</button></td></tr>';
+    }
+    h2+='</table></div>';
+    h2+='<p style="margin-top:8px;color:#888;font-size:12px">\u6062\u590d\u540e\u5f53\u524d\u6570\u636e\u81ea\u52a8\u5907\u4efd</p>';
+    h2+='<button class="btn btn-outline" onclick="document.getElementById(\'_ov\').style.display=\'none\'">\u5173\u95ed</button>';
+    if(!document.getElementById("_ov")){
+      var ov=document.createElement("div");ov.id="_ov";
+      ov.style.cssText="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center";
+      ov.onclick=function(){ov.style.display="none";};
+      var bx=document.createElement("div");bx.style.cssText="background:#fff;border-radius:12px;padding:24px;max-width:700px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2)";
+      bx.onclick=function(e){e.stopPropagation();};
+      var ct=document.createElement("div");ct.id="_cv";bx.appendChild(ct);ov.appendChild(bx);
+      document.body.appendChild(ov);
+    }
+    document.getElementById("_cv").innerHTML=h2;
+    document.getElementById("_ov").style.display="flex";
+  }catch(e){ST("\u52a0\u8f7d\u5931\u8d25: "+e.message,"error");}
+}
+async function restoreBackup(file){
+  
+  try{
+    var resp=await fetch("/api/undo_specific_upload",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({file:file})});
+    var d=await resp.json();
+    ST(d.message,d.success?"success":"error");
+    document.getElementById("_ov").style.display="none";
+  }catch(e){ST("\u6062\u590d\u5931\u8d25: "+e.message,"error");}
+}
+</script>
+</body></html
+<colgroup>
+<col style="width:36px">
+<col style="width:200px">
+<col style="width:90px">
+<col style="width:200px">
+<col style="width:280px">
+<col style="width:130px">
+<col style="width:120px">
+<col style="width:160px">
+</colgroup>
+
+>
