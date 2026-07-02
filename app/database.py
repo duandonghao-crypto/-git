@@ -65,6 +65,7 @@ class Row:
     def __contains__(self, k): return k in self._d
     def items(self): return self._d.items()
     def values(self): return self._d.values()
+    def __iter__(self): return iter(self._d)
     def __repr__(self): return repr(self._d)
 
 def _pg_connect():
