@@ -35,9 +35,10 @@ if error_msg:
     def catch_all(path):
         return 'AppError: ' + str(error_msg)
 else:
-    def index():
-        return app.send_static_file('index.html')
-    app.add_url_rule('/', 'index', index)
+    try:
+        return  # Routes already registered by create_app(), nothing to add
+    finally:
+        pass
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
