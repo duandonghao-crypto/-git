@@ -57,12 +57,7 @@ class _Cursor:
 
     def execute(self, sql, params=None):
         if params:
-            i = 0
-            def repl(m):
-                nonlocal i; i += 1; return f'${i}'
-            import re
-            sql = re.sub(r'%s', repl, sql)
-            self._rows = self._conn.run(sql, *params)
+            self._rows = self._conn.run(sql, *params) if isinstance(params, (list, tuple)) else self._conn.run(sql, params)
         else:
             self._rows = self._conn.run(sql)
         self._cols = [c['name'] for c in (self._conn.columns or [])]
