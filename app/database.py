@@ -50,21 +50,26 @@ class Row:
     def items(self):
         return self._data.items()
 
-    def __repr__(self):
-        return repr(self._data)
+class Row(dict):
+    """Dict that also supports index access row[0]."""
+    def __init__(self, keys, values):
+        super().__init__(zip(keys, values))
+        self._idx = list(keys)
 
-
-def dict_row_factory(cursor):
-    """Row factory that returns Row objects (dict + index access)."""
-    cols = [d[0] for d in cursor.description] if cursor.description else []
-    for row in cursor:
-        yield Row(cols, row)
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return super().__getitem__(self._idx[key])
+        return super().__getitem__(key)
 
 
 def _pg_connect():
     url = Config.db_url()
     if PG_V3:
-        conn = psycopg.connect(url, row_factory=dict_row_factory,
+        def row_factory(cursor):
+            cols = [d[0] for d in cursor.description] if cursor.description else []
+            for r in cursor:
+                yield Row(cols, r)
+        conn = psycopg.connect(url, row_factory=row_factory,
                                prepare_threshold=None)
         conn.autocommit = False
         return conn
