@@ -107,11 +107,6 @@ def expense_extract():
     output_dir = data.get('output_dir', _workspace_dir())
     mapping_path = data.get('mapping_path', Config.MAPPING_FILE)
     logs = []
-    abs_path = os.path.abspath(mapping_path)
-    logs.append(f'映射: {abs_path} (存在:{os.path.exists(abs_path)})')
-    if not os.path.exists(abs_path):
-        logs.append(f'错误: 映射文件不存在')
-        return _json({'success': False, 'logs': logs, 'count': 0})
     if not os.path.exists(output_dir):
         logs.append(f'错误: 目录不存在: {output_dir}')
         return _json({'success': False, 'logs': logs, 'count': 0})
@@ -124,6 +119,11 @@ def expense_extract():
     if not pdf_files:
         logs.append('错误: 未找到电费单PDF文件')
         return _json({'success': False, 'logs': logs, 'count': 0})
+
+    # Limit to avoid Render timeout (200 max)
+    if len(pdf_files) > 200:
+        logs.append(f'PDF较多({len(pdf_files)}个)，分批处理前200个')
+        pdf_files = pdf_files[:200]
 
     logs.append(f'找到 {len(pdf_files)} 个电费单PDF文件')
     data_list = []

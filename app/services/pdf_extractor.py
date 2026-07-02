@@ -58,8 +58,19 @@ class PDFExtractor:
             return None
 
     @staticmethod
-    def extract_invoice_info(pdf_path: str) -> dict | None:
+    def extract_bill_data(pdf_path: str) -> dict | None:
         try:
+            # Skip empty or broken files
+            size = os.path.getsize(pdf_path)
+            if size < 100 or size > 50 * 1024 * 1024:  # <100 bytes or >50MB
+                return None
+
+            # Quick check: is it a valid PDF?
+            with open(pdf_path, 'rb') as f:
+                header = f.read(10)
+                if not header.startswith(b'%PDF'):
+                    return None
+
             text = ''
             with pdfplumber.open(pdf_path) as pdf:
                 if pdf.pages:
