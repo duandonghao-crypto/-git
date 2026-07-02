@@ -97,7 +97,7 @@ def search():
             sql += f" AND t.category = {p}"; args.append(cat)
         if cust:
             sql += f" AND t.counterparty LIKE {p}"; args.append(f"%{cust}%")
-        sql += " GROUP BY m.meter_id, m.location, m.usage_type, m.ownership, t.counterparty, COALESCE(t.year_month,'') ORDER BY t.year_month DESC, m.meter_id LIMIT 500"
+        sql += " GROUP BY m.meter_id, m.location, m.usage_type, m.ownership, t.counterparty, t.year_month ORDER BY t.year_month DESC, m.meter_id LIMIT 500"
         try:
             c.execute(sql, args)
             return jsonify([dict(r) for r in c.fetchall() if r['year_month']])
