@@ -1,27 +1,54 @@
 """
 PDF text extraction for electricity bills and invoices.
+Uses pypdf (lightweight, pure Python, Render-safe).
 """
-import re
-import os
-import pdfplumber
+import re, os
+
+try:
+    from pypdf import PdfReader
+except ImportError:
+    try:
+        import pdfplumber
+        _use_plumber = True
+    except ImportError:
+        _use_plumber = False
+else:
+    _use_plumber = False
 
 
 class PDFExtractor:
-    """Extract data from electricity bill PDFs."""
+
+    @staticmethod
+    def _extract_text(pdf_path: str) -> str:
+        """Extract text from first page of PDF."""
+        try:
+            if _use_plumber:
+                with pdfplumber.open(pdf_path) as pdf:
+                    if pdf.pages:
+                        return pdf.pages[0].extract_text() or ''
+            else:
+                reader = PdfReader(pdf_path)
+                if reader.pages:
+                    return reader.pages[0].extract_text() or ''
+        except Exception:
+            pass
+        return ''
 
     @staticmethod
     def extract_bill_data(pdf_path: str) -> dict | None:
         try:
-            text = ''
-            with pdfplumber.open(pdf_path) as pdf:
-                # Only first page needed for bills
-                if pdf.pages:
-                    t = pdf.pages[0].extract_text()
-                    if t:
-                        text = t
+            size = os.path.getsize(pdf_path)
+            if size < 100 or size > 50 * 1024 * 1024:
+                return None
+            with open(pdf_path, 'rb') as f:
+                if not f.read(10).startswith(b'%PDF'):
+                    return None
+
+            text = PDFExtractor._extract_text(pdf_path)
+            if not text:
+                return None
 
             filename = os.path.basename(pdf_path)
-
             uid_match = re.search(r'用户\[(\d+)\]', filename)
             if not uid_match:
                 uid_match = re.search(r'用户\[(\d+)\]', text)
@@ -37,53 +64,30 @@ class PDFExtractor:
             for line in text.split('\n'):
                 if '本期电费' in line:
                     fm = re.search(r'本期电费[\s:：]*([\d,.]+)', line)
-                    if fm:
-                        fee = fm.group(1).replace(',', '')
+                    if fm: fee = fm.group(1).replace(',', '')
                     break
 
             kwh = ''
             for line in text.split('\n'):
                 if '本期电量' in line:
                     km = re.search(r'本期电量\s*([\d,.]+)', line)
-                    if km:
-                        kwh = km.group(1).replace(',', '')
+                    if km: kwh = km.group(1).replace(',', '')
                     break
 
-            return {
-                'user_id': user_id, 'year_month': ym,
-                'electricity_fee': fee, 'electricity_kwh': kwh,
-                'filename': filename,
-            }
+            return {'user_id': user_id, 'year_month': ym, 'electricity_fee': fee, 'electricity_kwh': kwh, 'filename': filename}
         except Exception:
             return None
 
     @staticmethod
-    def extract_bill_data(pdf_path: str) -> dict | None:
+    def extract_invoice_info(pdf_path: str) -> dict | None:
         try:
-            # Skip empty or broken files
-            size = os.path.getsize(pdf_path)
-            if size < 100 or size > 50 * 1024 * 1024:  # <100 bytes or >50MB
+            text = PDFExtractor._extract_text(pdf_path)
+            if not text:
                 return None
 
-            # Quick check: is it a valid PDF?
-            with open(pdf_path, 'rb') as f:
-                header = f.read(10)
-                if not header.startswith(b'%PDF'):
-                    return None
-
-            text = ''
-            with pdfplumber.open(pdf_path) as pdf:
-                if pdf.pages:
-                    t = pdf.pages[0].extract_text()
-                    if t:
-                        text = t
-
-            # Extract buyer name: 北京XX有限公司
             buyer = re.search(r'名称[:：]\s*([\u4e00-\u9fa5a-zA-Z()（）\s]+?有限公司)', text)
             if not buyer:
                 buyer = re.search(r'名称[:：]([\u4e00-\u9fa5a-zA-Z()（）]+有限公司)', text)
-
-            # Extract billing month
             month_m = re.search(r'电费年月[:：](\d{6})', text)
             if not month_m:
                 month_m = re.search(r'年月[：:]\s*(\d{6})', text)
@@ -91,24 +95,19 @@ class PDFExtractor:
             if buyer and month_m:
                 bname = re.sub(r'\s+', '', buyer.group(1).strip())
                 return {'buyer_name': bname, 'year_month': month_m.group(1)}
-
             return None
         except Exception:
             return None
 
     @staticmethod
     def rename_invoice(pdf_path: str) -> tuple[bool, str]:
-        """Rename invoice PDF to 公司名X月电费发票.pdf.
-        Returns (success, new_filename_or_error)."""
         info = PDFExtractor.extract_invoice_info(pdf_path)
         if not info:
             return False, "无法提取发票信息"
-
         bname = info['buyer_name']
         ym = info['year_month']
         month = str(int(ym[-2:]))
         new_fn = f"{bname}{month}月电费发票.pdf"
-
         parent = os.path.dirname(pdf_path)
         new_path = os.path.join(parent, new_fn)
         counter = 1
@@ -116,6 +115,5 @@ class PDFExtractor:
             new_fn = f"{bname}{month}月电费发票({counter}).pdf"
             new_path = os.path.join(parent, new_fn)
             counter += 1
-
         os.rename(pdf_path, new_path)
         return True, new_fn
