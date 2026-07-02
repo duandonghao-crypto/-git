@@ -2,5 +2,6 @@ flask>=3.0
 flask-cors>=4.0
 openpyxl>=3.1
 pg8000>=1.30
+pdfplumber>=0.10
 gunicorn>=22.0
 pyyaml>=6.0

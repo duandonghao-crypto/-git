@@ -65,10 +65,7 @@ class Config:
     DOWNLOADS_DIR: str = str(Path.home() / "Downloads")
 
     # Mapping file: check cloud (data/) then parent (local dev)
-    _local_map = DATA_DIR / "简称对应表.xlsx"
-    _parent_map = BASE_DIR.parent / "简称对应表.xlsx"
-    MAPPING_FILE: str = str(_config.get("mapping_file",
-        _local_map if _local_map.exists() else _parent_map))
+    MAPPING_FILE: str = str(_config.get("mapping_file", DATA_DIR / "简称对应表.xlsx"))
 
     # Limits
     MAX_BACKUPS: int = int(_config.get("max_backups", 20))
