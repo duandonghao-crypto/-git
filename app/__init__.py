@@ -154,6 +154,15 @@ def create_app(config_class=Config) -> Flask:
     def health():
         return jsonify({'status': 'ok'})
 
+    @app.route('/api/logs')
+    def view_logs():
+        try:
+            with open(Config.LOG_FILE, 'r', encoding='utf-8') as f:
+                lines = f.readlines()[-50:]
+            return jsonify({'logs': [l.strip() for l in lines]})
+        except:
+            return jsonify({'logs': ['no logs yet']})
+
     @app.route('/dbcheck')
     def dbcheck():
         try:
