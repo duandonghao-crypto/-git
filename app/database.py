@@ -50,22 +50,22 @@ class Row:
     def items(self):
         return self._data.items()
 
-class Row(dict):
-    """A dict-like row that also supports index access row[0]."""
-    __slots__ = ('_keys',)
+class Row:
+    __slots__ = ('_d', '_keys')
     def __init__(self, keys, values):
-        d = dict(zip(keys, values))
-        super().__init__(d)
-        object.__setattr__(self, '_keys', list(keys))
+        self._d = dict(zip(keys, values))
+        self._keys = list(keys)
     def __getitem__(self, key):
-        if isinstance(key, int):
-            k = object.__getattribute__(self, '_keys')[key]
-            return dict.__getitem__(self, k)
-        return dict.__getitem__(self, key)
+        if isinstance(key, int): key = self._keys[key]
+        return self._d[key]
     def get(self, key, default=None):
         try: return self[key]
         except (KeyError, IndexError): return default
-
+    def keys(self): return self._d.keys()
+    def __contains__(self, k): return k in self._d
+    def items(self): return self._d.items()
+    def values(self): return self._d.values()
+    def __repr__(self): return repr(self._d)
 
 def _pg_connect():
     url = Config.db_url()
