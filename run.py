@@ -12,10 +12,11 @@ app = Flask(__name__)
 def health():
     return 'OK'
 
-@app.route('/')
+@app.route('/', defaults={'filename': 'index.html'})
 @app.route('/<path:filename>')
-def serve_file(filename='index.html'):
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', filename)
+def serve_file(filename):
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+    path = os.path.join(static_dir, filename.lstrip('/'))
     if os.path.isfile(path):
         with open(path, 'r', encoding='utf-8') as f:
             return f.read()
