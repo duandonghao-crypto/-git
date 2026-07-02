@@ -57,15 +57,12 @@ class _Cursor:
 
     def execute(self, sql, params=None):
         if params:
-            # Convert %s to pg8000 style $1, $2...
             i = 0
             def repl(m):
-                nonlocal i
-                i += 1
-                return f'${i}'
+                nonlocal i; i += 1; return f'${i}'
             import re
             sql = re.sub(r'%s', repl, sql)
-            self._rows = self._conn.run(sql, **dict(enumerate(params, 1)))
+            self._rows = self._conn.run(sql, *params)
         else:
             self._rows = self._conn.run(sql)
         self._cols = [c['name'] for c in (self._conn.columns or [])]
