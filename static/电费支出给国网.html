@@ -52,7 +52,7 @@ body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f0f2f5;c
 <div class="fg"><label>日期从:</label><input type="date" id="cfgStart" value=""><label>到:</label><input type="date" id="cfgEnd" value=""><span style="font-size:11px;color:#888">留空则搜索全部邮件</span></div>
 </div></div>
 <div class="section"><div class="section-hd">配置</div><div class="section-body">
-<div class="fg"><label>映射文件:</label><input type="text" id="cfgMapFile" value="../简称对应表.xlsx" style="flex:1;min-width:180px"><input type="file" id="cfgMapPicker" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'cfgMapFile')"><button class="btn btn-o btn-sm" onclick="document.getElementById('cfgMapPicker').click()">浏览</button><span style="font-size:11px;color:#888">A列户号 B列简称 C列公司</span></div>
+<div class="fg"><label>映射文件:</label><input type="text" id="cfgMapFile" value="data/简称对应表.xlsx" style="flex:1;min-width:180px"><input type="file" id="cfgMapPicker" accept=".xlsx,.xls" style="display:none" onchange="pickFile(this,'cfgMapFile')"><button class="btn btn-o btn-sm" onclick="document.getElementById('cfgMapPicker').click()">浏览</button><span style="font-size:11px;color:#888">A列户号 B列简称 C列公司</span></div>
 </div></div>
 <div class="section"><div class="section-hd">邮箱操作</div><div class="section-body">
 <div class="fg" style="gap:4px">
@@ -152,7 +152,7 @@ function log(msg,cls){cls=cls||'info';var a=E('logArea');var div=document.create
 function getCfg(){
   var c={
     output_dir: getWorkDir(),
-    mapping_path: E('cfgMapFile').value.trim() || '../简称对应表.xlsx',
+    mapping_path: E('cfgMapFile').value.trim() || 'data/简称对应表.xlsx',
     email:     E('cfgEmail').value.trim(),
     password:  E('cfgPassword').value,
     server:    E('cfgServer').value.trim() || 'imap.88.com',
