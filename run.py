@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Electricity Manager v3 — PostgreSQL, Gunicorn/Waitress, Multi-user.
-"""
+"""Electricity Manager v3"""
 import os, sys, argparse, traceback
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -24,16 +22,21 @@ app = Flask(__name__)
 def health():
     return jsonify({'status': 'ok'})
 
-# Try full app
+# Try to load full app
+_load_error = None
 try:
     from app import create_app as _create
     app = _create()
-    app.logger.info("Full app loaded")
-except Exception as e:
+    app.logger.info("Full app loaded successfully")
+except Exception as ex:
+    _load_error = str(ex)
     traceback.print_exc()
-    @app.route('/')
-    def index():
-        return jsonify({'error': f'App not fully loaded: {e}', 'hint': 'Check DATABASE_URL env var and Neon connection'})
+
+@app.route('/')
+def index():
+    if _load_error:
+        return jsonify({'error': _load_error, 'hint': 'Check requirements.txt and DATABASE_URL'})
+    return app.send_static_file('index.html')
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
