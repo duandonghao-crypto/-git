@@ -30,9 +30,10 @@ except Exception as e:
     error_msg = str(e)[:300]
 
 if error_msg:
-    def index():
-        return f'<h1>App Error</h1><pre>{error_msg}</pre>'
-    app.add_url_rule('/', 'index', index)
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def catch_all(path):
+        return 'AppError: ' + str(error_msg)
 else:
     def index():
         return app.send_static_file('index.html')
