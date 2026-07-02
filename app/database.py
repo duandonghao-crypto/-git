@@ -50,10 +50,31 @@ class Row:
     def items(self):
         return self._data.items()
 
+class Row(dict):
+    """A dict-like row that also supports index access row[0]."""
+    __slots__ = ('_keys',)
+    def __init__(self, keys, values):
+        d = dict(zip(keys, values))
+        super().__init__(d)
+        object.__setattr__(self, '_keys', list(keys))
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            k = object.__getattribute__(self, '_keys')[key]
+            return dict.__getitem__(self, k)
+        return dict.__getitem__(self, key)
+    def get(self, key, default=None):
+        try: return self[key]
+        except (KeyError, IndexError): return default
+
+
 def _pg_connect():
     url = Config.db_url()
     if PG_V3:
-        conn = psycopg.connect(url, prepare_threshold=None)
+        def row_factory(cursor):
+            cols = [d[0] for d in cursor.description] if cursor.description else []
+            for row in cursor:
+                yield Row(cols, row)
+        conn = psycopg.connect(url, row_factory=row_factory, prepare_threshold=None)
         conn.autocommit = False
         return conn
     else:
