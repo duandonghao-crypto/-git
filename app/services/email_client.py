@@ -25,15 +25,9 @@ class EmailClient:
 
     def _connect(self):
         """Connect and login to IMAP server."""
-        import socket
-        old_timeout = socket.getdefaulttimeout()
-        try:
-            socket.setdefaulttimeout(15)
-            self._mail = imaplib.IMAP4_SSL(self.server, self.port)
-            self._mail.login(self.address, self.password)
-            self._mail.select('INBOX')
-        finally:
-            socket.setdefaulttimeout(old_timeout)
+        self._mail = imaplib.IMAP4_SSL(self.server, self.port, timeout=15)
+        self._mail.login(self.address, self.password)
+        self._mail.select('INBOX')
 
     def _disconnect(self):
         if self._mail:

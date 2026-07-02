@@ -31,23 +31,31 @@ def _workspace_dir():
 # Email endpoints (no user_id needed)
 @expense_bp.route('/api/expense_scan', methods=['POST'])
 def expense_scan():
-    data = request.get_json(force=True)
-    client = EmailClient(address=data.get('email') or None, password=data.get('password') or None,
-                         server=data.get('server') or None, port=int(data.get('port', 993)))
-    success, logs, total, bill_count, invoice_count = client.scan_emails(
-        data.get('start_date', ''), data.get('end_date', ''))
-    return _json({'success': success, 'logs': logs, 'total': total, 'bill_count': bill_count, 'invoice_count': invoice_count}, 500 if not success else 200)
+    try:
+        data = request.get_json(force=True)
+        client = EmailClient(address=data.get('email') or None, password=data.get('password') or None,
+                             server=data.get('server') or None, port=int(data.get('port', 993)))
+        success, logs, total, bill_count, invoice_count = client.scan_emails(
+            data.get('start_date', ''), data.get('end_date', ''))
+        return _json({'success': success, 'logs': logs, 'total': total, 'bill_count': bill_count, 'invoice_count': invoice_count}, 500 if not success else 200)
+    except Exception as e:
+        import traceback
+        return _json({'success': False, 'logs': [f'扫描出错: {e}', traceback.format_exc()[-200:]]}, 500)
 
 
 @expense_bp.route('/api/expense_download_bills', methods=['POST'])
 def expense_download_bills():
-    data = request.get_json(force=True)
-    output_dir = data.get('output_dir', _workspace_dir())
-    client = EmailClient(address=data.get('email') or None, password=data.get('password') or None,
-                         server=data.get('server') or None, port=int(data.get('port', 993)))
-    success, logs, count = client.download_bills(data.get('start_date', ''), data.get('end_date', ''), output_dir)
-    pdfs = sorted([f for f in os.listdir(output_dir) if f.endswith('.pdf') and '用户[' in f])
-    return _json({'success': success, 'logs': logs, 'count': count, 'html_url': '/attachments/bill_download.html' if pdfs else ''}, 500 if not success else 200)
+    try:
+        data = request.get_json(force=True)
+        output_dir = data.get('output_dir', _workspace_dir())
+        client = EmailClient(address=data.get('email') or None, password=data.get('password') or None,
+                             server=data.get('server') or None, port=int(data.get('port', 993)))
+        success, logs, count = client.download_bills(data.get('start_date', ''), data.get('end_date', ''), output_dir)
+        pdfs = sorted([f for f in os.listdir(output_dir) if f.endswith('.pdf') and '用户[' in f]) if os.path.isdir(output_dir) else []
+        return _json({'success': success, 'logs': logs, 'count': count, 'html_url': '/attachments/bill_download.html' if pdfs else ''}, 500 if not success else 200)
+    except Exception as e:
+        import traceback
+        return _json({'success': False, 'logs': [f'下载出错: {e}', traceback.format_exc()[-300:]]}, 500)
 
 
 @expense_bp.route('/api/expense_download_invoices', methods=['POST'])
