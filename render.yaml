@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: electricity-manager
-    env: python
-    runtime: python3
-    buildCommand: pip install -r requirements.txt
-    startCommand: python run.py
-    plan: free
