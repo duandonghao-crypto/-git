@@ -151,7 +151,7 @@ def expense_extract():
         logs.append('错误: 未提取到任何数据')
         return _json({'success': False, 'logs': logs, 'count': 0})
 
-    output_file = ExcelHandler.generate_summary(data_list, os.path.join(BASE_DIR, f'电费单信息汇总-{datetime.now().strftime("%Y年%m月%d日")}.xlsx'))
+    output_file = ExcelHandler.generate_summary(data_list, os.path.join(Config.ATTACHMENTS_DIR, f'电费单信息汇总-{datetime.now().strftime("%Y年%m月%d日")}.xlsx'))
     logs.append(f'共提取 {len(data_list)} 条记录')
     return _json({'success': True, 'logs': logs, 'count': len(data_list), 'file': output_file})
 
@@ -202,7 +202,10 @@ def expense_dedup():
 @expense_bp.route('/api/expense_upload', methods=['POST'])
 def expense_upload_expense():
     import glob as gb
-    files = gb.glob(os.path.join(BASE_DIR, '电费单信息汇总-*.xlsx'))
+    # Search in attachments dir first (workspace), then root
+    files = gb.glob(os.path.join(_workspace_dir(), '电费单信息汇总-*.xlsx'))
+    if not files:
+        files = gb.glob(os.path.join(Config.ATTACHMENTS_DIR, '电费单信息汇总-*.xlsx'))
     if not files:
         return _json({'success': False, 'logs': ['未找到汇总文件'], 'count': 0})
     xlsx_file = sorted(files)[-1]

@@ -5,28 +5,32 @@ Uses pypdf (lightweight, pure Python, Render-safe).
 import re, os
 
 try:
-    from pypdf import PdfReader
+    import pdfplumber
+    _has_plumber = True
 except ImportError:
-    try:
-        import pdfplumber
-        _use_plumber = True
-    except ImportError:
-        _use_plumber = False
-else:
-    _use_plumber = False
+    _has_plumber = False
+
+try:
+    from pypdf import PdfReader
+    _has_pypdf = True
+except ImportError:
+    _has_pypdf = False
 
 
 class PDFExtractor:
 
     @staticmethod
     def _extract_text(pdf_path: str) -> str:
-        """Extract text from first page of PDF."""
         try:
-            if _use_plumber:
+            # Try pdfplumber first (better for Chinese text)
+            if _has_plumber:
                 with pdfplumber.open(pdf_path) as pdf:
                     if pdf.pages:
                         return pdf.pages[0].extract_text() or ''
-            else:
+        except Exception:
+            pass
+        try:
+            if _has_pypdf:
                 reader = PdfReader(pdf_path)
                 if reader.pages:
                     return reader.pages[0].extract_text() or ''

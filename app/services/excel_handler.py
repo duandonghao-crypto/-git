@@ -20,7 +20,7 @@ class ExcelHandler:
         Returns the output file path."""
         today = datetime.now().strftime('%Y年%m月%d日')
         if not output_file:
-            output_file = os.path.join(os.path.dirname(Config.ATTACHMENTS_DIR),
+            output_file = os.path.join(Config.ATTACHMENTS_DIR,
                                        f'电费单信息汇总-{today}.xlsx')
 
         wb = openpyxl.Workbook()
