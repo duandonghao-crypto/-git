@@ -22,7 +22,6 @@ app = Flask(__name__)
 def health():
     return jsonify({'status': 'ok'})
 
-# Try to load full app
 _load_error = None
 try:
     from app import create_app as _create
@@ -32,11 +31,16 @@ except Exception as ex:
     _load_error = str(ex)
     traceback.print_exc()
 
+# Routes that use the FINAL app (fallback or full)
 @app.route('/')
 def index():
     if _load_error:
-        return jsonify({'error': _load_error, 'hint': 'Check requirements.txt and DATABASE_URL'})
-    return app.send_static_file('index.html')
+        return jsonify({'error': _load_error, 'hint': 'Check DATABASE_URL'})
+    try:
+        return app.send_static_file('index.html')
+    except:
+        from flask import render_template_string
+        return render_template_string('<h1>Index loaded</h1><a href="/health">Health</a>')
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
