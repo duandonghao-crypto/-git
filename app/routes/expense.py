@@ -107,8 +107,14 @@ def expense_extract():
     output_dir = data.get('output_dir', _workspace_dir())
     mapping_path = data.get('mapping_path', Config.MAPPING_FILE)
     logs = []
+    abs_path = os.path.abspath(mapping_path)
+    logs.append(f'映射: {abs_path} (存在:{os.path.exists(abs_path)})')
+    if not os.path.exists(abs_path):
+        logs.append(f'错误: 映射文件不存在')
+        return _json({'success': False, 'logs': logs, 'count': 0})
     if not os.path.exists(output_dir):
         logs.append(f'错误: 目录不存在: {output_dir}')
+        return _json({'success': False, 'logs': logs, 'count': 0})
         return _json({'success': False, 'logs': logs, 'count': 0})
 
     shortname_mapping = FileManager.load_shortname_mapping(mapping_path)
