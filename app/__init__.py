@@ -24,37 +24,33 @@ def create_app(config_class=Config) -> Flask:
     # ===== Auth APIs =====
     @app.route('/api/auth/login', methods=['POST'])
     def auth_login():
-        data = request.get_json(force=True)
-        name = (data.get('name') or '').strip()
-        if not name:
-            return jsonify({'success': False, 'message': '请输入名字'}), 400
-
-        from app.database import get_db
-        conn = get_db()
         try:
-            c = conn.cursor()
-            if Config.DB_TYPE == "sqlite":
-                c.execute("SELECT id FROM users WHERE name=?", (name,))
-            else:
+            data = request.get_json(force=True)
+            name = (data.get('name') or '').strip()
+            if not name:
+                return jsonify({'success': False, 'message': '请输入名字'}), 400
+            from app.database import get_db
+            conn = get_db()
+            try:
+                c = conn.cursor()
                 c.execute("SELECT id FROM users WHERE name=%s", (name,))
-            row = c.fetchone()
-            if not row:
-                if Config.DB_TYPE == "sqlite":
-                    c.execute("INSERT INTO users (name) VALUES (?)", (name,))
-                else:
+                row = c.fetchone()
+                if not row:
                     c.execute("INSERT INTO users (name) VALUES (%s) ON CONFLICT DO NOTHING", (name,))
+                    conn.commit()
                     c.execute("SELECT id FROM users WHERE name=%s", (name,))
                     row = c.fetchone()
-                if not row:
-                    return jsonify({'success': False, 'message': '创建用户失败'}), 500
+                    if not row:
+                        return jsonify({'success': False, 'message': '创建用户失败'}), 500
+                user_id = row[0]
                 conn.commit()
-            user_id = row[0] if isinstance(row, tuple) else row['id']
-        finally:
-            conn.close()
-
-        session['user_id'] = user_id
-        session['user_name'] = name
-        return jsonify({'success': True, 'user_id': user_id, 'user_name': name})
+            finally:
+                conn.close()
+            session['user_id'] = user_id
+            session['user_name'] = name
+            return jsonify({'success': True, 'user_id': user_id, 'user_name': name})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e), 'type': type(e).__name__})
 
     @app.route('/api/auth/me')
     def auth_me():
