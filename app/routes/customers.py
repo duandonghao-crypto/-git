@@ -8,16 +8,20 @@ customers_bp = Blueprint('customers', __name__)
 
 @customers_bp.route('/api/customers')
 def list_customers():
-    uid = user_id()
-    with db_session() as conn:
-        c = conn.cursor()
-        c.execute("""SELECT c.id, c.name, STRING_AGG(cm.meter_id, ', ') as meters,
-                     COUNT(CASE WHEN cm.valid_to IS NULL THEN 1 END) as active_links,
-                     COUNT(cm.id) as total_links
-                     FROM customers c LEFT JOIN customer_meters cm ON c.id=cm.customer_id
-                     WHERE c.user_id=%s
-                     GROUP BY c.id ORDER BY c.name""", (uid,))
-        return jsonify([dict(r) for r in c.fetchall()])
+    try:
+        uid = user_id()
+        with db_session() as conn:
+            c = conn.cursor()
+            c.execute("""SELECT c.id, c.name, STRING_AGG(cm.meter_id, ', ') as meters,
+                         COUNT(CASE WHEN cm.valid_to IS NULL THEN 1 END) as active_links,
+                         COUNT(cm.id) as total_links
+                         FROM customers c LEFT JOIN customer_meters cm ON c.id=cm.customer_id
+                         WHERE c.user_id=%s
+                         GROUP BY c.id ORDER BY c.name""", (uid,))
+            return jsonify([dict(r) for r in c.fetchall()])
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()[-300:]})
 
 
 @customers_bp.route('/api/customer_detail')
