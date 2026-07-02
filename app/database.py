@@ -1,47 +1,18 @@
-"""Database module - PostgreSQL (psycopg2) or SQLite."""
+"""Database module — PostgreSQL (pg8000, pure Python) or SQLite."""
 import os, sqlite3
 from contextlib import contextmanager
 
 try:
-    import psycopg
+    import pg8000.native
     HAS_PG = True
-    PG_V3 = True
-    import psycopg.rows
 except ImportError:
-    try:
-        import psycopg2
-        import psycopg2.extras
-        HAS_PG = True
-        PG_V3 = False
-    except ImportError:
-        HAS_PG = False
-        PG_V3 = False
+    HAS_PG = False
 
 from config import Config
 
 
-class DBRow:
-    """Dict row that also supports [0] index access using first value."""
-    def __init__(self, d):
-        self._d = d
-        self._keys = list(d.keys()) if d else []
-    def __getitem__(self, k):
-        if isinstance(k, int):
-            if 0 <= k < len(self._keys):
-                return self._d[self._keys[k]]
-            raise IndexError(k)
-        return self._d[k]
-    def keys(self): return self._d.keys()
-    def values(self): return self._d.values()
-    def items(self): return self._d.items()
-    def get(self, k, d=None): return self._d.get(k, d)
-    def __contains__(self, k): return k in self._d
-    def __iter__(self): return iter(self._d)
-    def __len__(self): return len(self._d)
-    def __repr__(self): return repr(self._d)
-
-
 def get_db():
+    """Returns connection. pg8000: identifier is Connection object."""
     if Config.DB_TYPE == 'sqlite':
         conn = sqlite3.connect(getattr(Config, 'SQLITE_PATH', ':memory:'))
         conn.row_factory = sqlite3.Row
@@ -49,28 +20,80 @@ def get_db():
         conn.execute('PRAGMA foreign_keys=ON')
         return conn
     if not HAS_PG:
-        raise RuntimeError('psycopg not installed')
-    if PG_V3:
-        conn = psycopg.connect(Config.db_url(), row_factory=psycopg.rows.dict_row, prepare_threshold=None)
-        # Wrap cursor to return DBRow
-        _orig_cursor = conn.cursor
-        def wrapped_cursor(*a, **kw):
-            cur = _orig_cursor(*a, **kw)
-            _orig_fetchone = cur.fetchone
-            _orig_fetchall = cur.fetchall
-            def new_fetchone():
-                r = _orig_fetchone()
-                return DBRow(r) if r else None
-            def new_fetchall():
-                return [DBRow(r) for r in _orig_fetchall()]
-            cur.fetchone = new_fetchone
-            cur.fetchall = new_fetchall
-            return cur
-        conn.cursor = wrapped_cursor
-    else:
-        conn = psycopg2.connect(Config.db_url())
-    conn.autocommit = False
-    return conn
+        raise RuntimeError('pg8000 not installed')
+    url = Config.db_url()
+    # Parse postgresql://user:pass@host:port/db?params
+    from urllib.parse import urlparse, parse_qs
+    u = urlparse(url)
+    kwargs = dict(host=u.hostname, port=u.port or 5432,
+                  user=u.username, password=u.password,
+                  database=u.path.lstrip('/'))
+    qs = parse_qs(u.query)
+    if 'sslmode' in qs: kwargs['ssl_context'] = None  # Enable SSL
+    return pg8000.native.Connection(**kwargs)
+
+
+class _Cursor:
+    """Wrap pg8000 cursor to look like psycopg2 cursor.
+    fetchone/fetchall return dicts with [0] index support."""
+    def __init__(self, conn):
+        self._conn = conn
+        self._cols = []
+        self._rows = []
+
+    def execute(self, sql, params=None):
+        if params:
+            # Convert %s to pg8000 style $1, $2...
+            i = 0
+            def repl(m):
+                nonlocal i
+                i += 1
+                return f'${i}'
+            import re
+            sql = re.sub(r'%s', repl, sql)
+            self._rows = self._conn.run(sql, **dict(enumerate(params, 1)))
+        else:
+            self._rows = self._conn.run(sql)
+        self._cols = [c['name'] for c in (self._conn.columns or [])]
+        self._pos = 0
+
+    def fetchone(self):
+        if self._pos >= len(self._rows):
+            return None
+        r = self._rows[self._pos]
+        self._pos += 1
+        return _Row(self._cols, r) if self._cols else r
+
+    def fetchall(self):
+        return [_Row(self._cols, r) for r in self._rows[self._pos:]] if self._cols else self._rows[self._pos:]
+
+    @property
+    def rowcount(self):
+        return len(self._rows)
+
+    @property
+    def description(self):
+        return self._cols
+
+    def close(self):
+        pass
+
+
+class _Row:
+    """Dict-like row with [0] index support."""
+    def __init__(self, cols, values):
+        self._d = dict(zip(cols, values))
+        self._keys = cols
+    def __getitem__(self, k):
+        if isinstance(k, int): k = self._keys[k]
+        return self._d[k]
+    def keys(self): return self._d.keys()
+    def values(self): return self._d.values()
+    def items(self): return self._d.items()
+    def get(self, k, d=None): return self._d.get(k, d)
+    def __contains__(self, k): return k in self._d
+    def __iter__(self): return iter(self._d)
+    def __repr__(self): return repr(self._d)
 
 
 @contextmanager
@@ -100,15 +123,14 @@ def _init_sqlite():
 
 
 def _init_pg():
-    if PG_V3:
-        conn = psycopg.connect(Config.db_url(), prepare_threshold=None)
-    else:
-        conn = psycopg2.connect(Config.db_url())
-    conn.autocommit = True
+    conn = pg8000.native.Connection(
+        host=Config.pg_host(), port=Config.pg_port(),
+        user=Config.pg_user(), password=Config.pg_pass(),
+        database=Config.pg_db()
+    )
     try:
-        c = conn.cursor()
         for stmt in _SCHEMA_PG:
-            try: c.execute(stmt)
+            try: conn.run(stmt)
             except Exception as e:
                 if 'already exists' not in str(e).lower(): raise
     finally:
