@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Electricity Manager v3"""
-import os, sys, argparse, traceback
-
+import os, sys
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
@@ -11,36 +10,39 @@ if os.path.exists(env_path):
         for line in f:
             line = line.strip()
             if line and not line.startswith('#') and '=' in line:
-                key, value = line.split('=', 1)
-                os.environ.setdefault(key.strip(), value.strip())
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip())
 
-from flask import Flask, jsonify
-
+from flask import Flask
 app = Flask(__name__)
 
 @app.route('/health')
 def health():
-    return jsonify({'status': 'ok'})
+    return 'OK'
 
-_load_error = None
+error_msg = None
 try:
-    from app import create_app as _create
-    app = _create()
-    app.logger.info("Full app loaded successfully")
-except Exception as ex:
-    _load_error = str(ex)
+    from app import create_app
+    app = create_app()
+except Exception as e:
+    import traceback
     traceback.print_exc()
+    error_msg = str(e)[:300]
 
-# Routes that use the FINAL app (fallback or full)
-@app.route('/')
-def index():
-    err = str(_load_error) if _load_error else 'None'
-    return f'Error: {err} | Health: <a href=/health>/health</a>'
+if error_msg:
+    def index():
+        return f'<h1>App Error</h1><pre>{error_msg}</pre>'
+    app.add_url_rule('/', 'index', index)
+else:
+    def index():
+        return app.send_static_file('index.html')
+    app.add_url_rule('/', 'index', index)
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
 
 if __name__ == '__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
     parser.add_argument('--host', default=Config.HOST)
