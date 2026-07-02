@@ -57,7 +57,20 @@ class _Cursor:
 
     def execute(self, sql, params=None):
         if params:
-            self._rows = self._conn.run(sql, *params) if isinstance(params, (list, tuple)) else self._conn.run(sql, params)
+            # pg8000 uses :param style
+            if isinstance(params, (list, tuple)) and params:
+                import re
+                param_dict = {}
+                def repl(m):
+                    nonlocal param_dict
+                    i = len(param_dict)
+                    key = f'p{i}'
+                    param_dict[key] = params[i]
+                    return f':{key}'
+                sql = re.sub(r'%s', repl, sql)
+                self._rows = self._conn.run(sql, **param_dict) if param_dict else []
+            else:
+                self._rows = self._conn.run(sql, params)
         else:
             self._rows = self._conn.run(sql)
         self._cols = [c['name'] for c in (self._conn.columns or [])]
