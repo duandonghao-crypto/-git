@@ -100,15 +100,20 @@ def create_app(config_class=Config) -> Flask:
     # ===== Static routes =====
     @app.route('/')
     def index():
-        return app.send_static_file('index.html')
+        from flask import send_from_directory
+        try:
+            return send_from_directory(Config.STATIC_DIR, 'index.html')
+        except Exception:
+            return 'OK - Electricity Manager v3<br><a href="/电费支出给国网.html">支出</a> | <a href="/收费录入.html">收费</a>'
 
     @app.route('/<path:filename>')
     def serve_static(filename):
         if not filename or filename == '/':
             return index()
+        from flask import send_from_directory
         fp = os.path.join(Config.STATIC_DIR, filename)
         if os.path.exists(fp):
-            return app.send_static_file(filename)
+            return send_from_directory(Config.STATIC_DIR, filename)
         return '', 404
 
     @app.route('/attachments/<path:filename>')
