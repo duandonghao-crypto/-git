@@ -98,5 +98,9 @@ def search():
         if cust:
             sql += f" AND t.counterparty LIKE {p}"; args.append(f"%{cust}%")
         sql += " GROUP BY m.meter_id, t.counterparty, COALESCE(t.year_month,'') ORDER BY t.year_month DESC, m.meter_id LIMIT 500"
-        c.execute(sql, args)
-        return jsonify([dict(r) for r in c.fetchall() if r['year_month']])
+        try:
+            c.execute(sql, args)
+            return jsonify([dict(r) for r in c.fetchall() if r['year_month']])
+        except Exception as e:
+            import traceback
+            return jsonify({'error': str(e), 'sql': sql[-200:], 'detail': traceback.format_exc()[-300:]})
