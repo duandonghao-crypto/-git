@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""Electricity Manager v3"""
+"""Electricity Manager v3 - Direct static file serving"""
 import os, sys
+
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
-
-env_path = os.path.join(PROJECT_ROOT, '.env')
-if os.path.exists(env_path):
-    with open(env_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                os.environ.setdefault(k.strip(), v.strip())
 
 from flask import Flask
 app = Flask(__name__)
@@ -20,25 +12,26 @@ app = Flask(__name__)
 def health():
     return 'OK'
 
-error_msg = None
+@app.route('/')
+@app.route('/<path:filename>')
+def serve_file(filename='index.html'):
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', filename)
+    if os.path.isfile(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return 'Not Found: ' + filename, 404
+
+# Try loading full app
+error = None
 try:
     from app import create_app
     app = create_app()
+    print('Full app loaded', flush=True)
 except Exception as e:
     import traceback
     traceback.print_exc()
-    error_msg = str(e)[:300]
-
-if error_msg:
-    @app.route('/', defaults={'path': ''})
-    @app.route('/<path:path>')
-    def catch_all(path):
-        return 'AppError: ' + str(error_msg)
-else:
-    try:
-        return  # Routes already registered by create_app(), nothing to add
-    finally:
-        pass
+    error = str(e)[:300]
+    print(f'Full app failed: {error}', flush=True)
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
