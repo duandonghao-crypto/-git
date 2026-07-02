@@ -2,7 +2,7 @@
 """
 Electricity Manager v3 — PostgreSQL, Gunicorn/Waitress, Multi-user.
 """
-import os, sys, argparse
+import os, sys, argparse, traceback
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
@@ -16,26 +16,30 @@ if os.path.exists(env_path):
                 key, value = line.split('=', 1)
                 os.environ.setdefault(key.strip(), value.strip())
 
-from app import create_app
-from config import Config
+from flask import Flask
 
-# Module-level app for gunicorn (Render)
+# Always start with a minimal fallback app
+app = Flask(__name__)
+
+@app.route('/health')
+def health():
+    return 'ok'
+
+@app.route('/')
+def index():
+    return 'Loading... <a href="/health">Health</a>'
+
+# Try to replace with the full app
 try:
+    from app import create_app
     app = create_app()
-    print(f"App created: {len(list(app.url_map.iter_rules()))} routes", flush=True)
+    app.logger.info("Full app loaded successfully")
 except Exception as e:
-    import traceback
+    print(f"ERROR loading full app: {e}", flush=True)
     traceback.print_exc()
-    # Minimal fallback app so gunicorn can start and we can debug
-    from flask import Flask
-    app = Flask(__name__)
-    @app.route('/')
-    def fallback():
-        return f"App failed to start: {e}"
-    @app.route('/health')
-    def fallback_health():
-        return "ok"
+    print("Using fallback app - check DATABASE_URL env var and DB connectivity", flush=True)
 
+from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
 
 
@@ -61,10 +65,8 @@ def main():
 
     try:
         from waitress import serve
-        print("Using Waitress")
         serve(app, host=args.host, port=args.port, threads=8)
     except ImportError:
-        print("Using Flask dev server")
         app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 
