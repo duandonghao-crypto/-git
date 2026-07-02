@@ -36,11 +36,7 @@ except Exception as ex:
 def index():
     if _load_error:
         return jsonify({'error': _load_error, 'hint': 'Check DATABASE_URL'})
-    try:
-        return app.send_static_file('index.html')
-    except:
-        from flask import render_template_string
-        return render_template_string('<h1>Index loaded</h1><a href="/health">Health</a>')
+    return jsonify({'status': 'ok', 'message': 'App loaded. Visit /health for check.'})
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))

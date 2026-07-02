@@ -1,35 +1,54 @@
 """
-Database module — supports both PostgreSQL and SQLite.
-Uses psycopg2 for PG, sqlite3 for SQLite.
-All connections return dict-like rows.
+Database module — PostgreSQL (psycopg v3) or SQLite.
 """
 import os
 import sqlite3
 from contextlib import contextmanager
 
 try:
-    import psycopg2
-    import psycopg2.extras
+    import psycopg
     HAS_PG = True
 except ImportError:
-    HAS_PG = False
+    try:
+        import psycopg2
+        import psycopg2.extras
+        HAS_PG = True
+        PG_V3 = False
+    except ImportError:
+        HAS_PG = False
+        PG_V3 = False
+else:
+    PG_V3 = True
 
 from config import Config
 
 
+def _pg_connect():
+    """Connect to PostgreSQL, returns connection with dict-like rows."""
+    if PG_V3:
+        return psycopg.connect(Config.db_url(), row_factory=dict_row)
+    else:
+        conn = psycopg2.connect(Config.db_url(), sslmode='require' if 'neon' in Config.db_url() else 'prefer')
+        return conn
+
+
+def dict_row(cursor):
+    """Row factory for psycopg v3: dict-like rows."""
+    cols = [d[0] for d in cursor.description]
+    for row in cursor:
+        yield dict(zip(cols, row))
+
+
 def get_db():
-    """Get database connection. Returns connection with dict-like rows.
-    Uses DATABASE_URL if set (Render/Neon), otherwise local PG config."""
     if Config.DB_TYPE == "sqlite":
         conn = sqlite3.connect(getattr(Config, 'SQLITE_PATH', ':memory:'))
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
-    else:
-        if not HAS_PG:
-            raise RuntimeError("psycopg2 not installed. Run: pip install psycopg2-binary")
-        conn = psycopg2.connect(Config.db_url(), sslmode='require' if 'neon' in Config.db_url() else 'prefer')
-    return conn
+        return conn
+    if not HAS_PG:
+        raise RuntimeError("psycopg not installed. Run: pip install psycopg")
+    return _pg_connect()
 
 
 @contextmanager
@@ -66,8 +85,8 @@ def _init_sqlite():
 
 def _init_pg():
     if not HAS_PG:
-        raise RuntimeError("psycopg2 not installed")
-    conn = psycopg2.connect(Config.db_url(), sslmode='require' if 'neon' in Config.db_url() else 'prefer')
+        raise RuntimeError("psycopg not installed")
+    conn = _pg_connect()
     conn.autocommit = True
     try:
         c = conn.cursor()
