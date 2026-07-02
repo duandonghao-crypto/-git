@@ -11,8 +11,22 @@ except ImportError:
 from config import Config
 
 
+class _Connection:
+    """Wrap pg8000 connection to look like psycopg2 connection."""
+    def __init__(self, conn):
+        self._conn = conn
+        self.autocommit = True
+    def commit(self):
+        self._conn.run('COMMIT')
+    def rollback(self):
+        self._conn.run('ROLLBACK')
+    def close(self):
+        self._conn.close()
+    def cursor(self):
+        return _Cursor(self._conn)
+
+
 def get_db():
-    """Returns connection. pg8000: identifier is Connection object."""
     if Config.DB_TYPE == 'sqlite':
         conn = sqlite3.connect(getattr(Config, 'SQLITE_PATH', ':memory:'))
         conn.row_factory = sqlite3.Row
@@ -22,15 +36,15 @@ def get_db():
     if not HAS_PG:
         raise RuntimeError('pg8000 not installed')
     url = Config.db_url()
-    # Parse postgresql://user:pass@host:port/db?params
     from urllib.parse import urlparse, parse_qs
     u = urlparse(url)
-    kwargs = dict(host=u.hostname, port=u.port or 5432,
-                  user=u.username, password=u.password,
-                  database=u.path.lstrip('/'))
+    kwargs = dict(host=u.hostname, port=u.port or 5432, user=u.username, password=u.password, database=u.path.lstrip('/'))
     qs = parse_qs(u.query)
-    if 'sslmode' in qs: kwargs['ssl_context'] = None  # Enable SSL
-    return pg8000.native.Connection(**kwargs)
+    if 'sslmode' in qs: kwargs['ssl_context'] = None
+    raw = pg8000.native.Connection(**kwargs)
+    conn = _Connection(raw)
+    conn.autocommit = False
+    return conn
 
 
 class _Cursor:
