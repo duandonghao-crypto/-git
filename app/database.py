@@ -23,16 +23,54 @@ else:
 from config import Config
 
 
+class Row:
+    """Dual-access row: supports both dict['key'] and index row[0]."""
+    def __init__(self, keys, values):
+        self._keys = keys
+        self._index = {i: k for i, k in enumerate(keys)}
+        self._data = dict(zip(keys, values))
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._data[self._index[key]]
+        return self._data[key]
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+    def keys(self):
+        return self._data.keys()
+
+    def values(self):
+        return self._data.values()
+
+    def items(self):
+        return self._data.items()
+
+    def __repr__(self):
+        return repr(self._data)
+
+
+def dict_row_factory(cursor):
+    """Row factory that returns Row objects (dict + index access)."""
+    cols = [d[0] for d in cursor.description] if cursor.description else []
+    for row in cursor:
+        yield Row(cols, row)
+
+
 def _pg_connect():
-    """Connect to PostgreSQL, returns connection with dict rows."""
     url = Config.db_url()
     if PG_V3:
-        conn = psycopg.connect(url, row_factory=psycopg.rows.dict_row,
+        conn = psycopg.connect(url, row_factory=dict_row_factory,
                                prepare_threshold=None)
         conn.autocommit = False
         return conn
     else:
         conn = psycopg2.connect(url)
+        conn.autocommit = False
         return conn
 
 
