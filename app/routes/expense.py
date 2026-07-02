@@ -129,7 +129,11 @@ def expense_extract():
     data_list = []
     for idx, fn in enumerate(pdf_files, 1):
         logs.append(f'处理 {idx}/{len(pdf_files)}: {fn}')
-        info = PDFExtractor.extract_bill_data(os.path.join(output_dir, fn))
+        try:
+            info = PDFExtractor.extract_bill_data(os.path.join(output_dir, fn))
+        except Exception as e:
+            logs.append(f'  提取异常: {e}')
+            continue
         if not info:
             logs.append('  提取失败')
             continue
