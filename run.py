@@ -34,9 +34,8 @@ except Exception as ex:
 # Routes that use the FINAL app (fallback or full)
 @app.route('/')
 def index():
-    if _load_error:
-        return jsonify({'error': _load_error, 'hint': 'Check DATABASE_URL'})
-    return jsonify({'status': 'ok', 'message': 'App loaded. Visit /health for check.'})
+    err = str(_load_error) if _load_error else 'None'
+    return f'Error: {err} | Health: <a href=/health>/health</a>'
 
 from config import Config
 Config.PORT = int(os.environ.get('PORT', Config.PORT))
