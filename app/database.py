@@ -71,9 +71,9 @@ def _pg_connect():
     url = Config.db_url()
     if PG_V3:
         def row_factory(cursor):
-            cols = [d[0] for d in cursor.description] if cursor.description else []
+            cols = [d[0] for d in (cursor.description or [])]
             for row in cursor:
-                yield Row(cols, row)
+                yield Row(cols, row) if cols else row
         conn = psycopg.connect(url, row_factory=row_factory, prepare_threshold=None)
         conn.autocommit = False
         return conn
