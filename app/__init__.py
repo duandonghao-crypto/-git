@@ -153,10 +153,23 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(expense_bp)
     app.register_blueprint(charge_bp)
 
-    # Health check
+    # Health check with DB test
     @app.route('/health')
     def health():
         return jsonify({'status': 'ok'})
+
+    @app.route('/dbcheck')
+    def dbcheck():
+        try:
+            from app.database import get_db
+            conn = get_db()
+            c = conn.cursor()
+            c.execute('SELECT 1 as test')
+            r = c.fetchone()
+            conn.close()
+            return jsonify({'db': 'ok', 'result': r[0]})
+        except Exception as e:
+            return jsonify({'db': 'error', 'detail': str(e)})
 
     # ===== Init directories and DB (try, don't crash) =====
     with app.app_context():
