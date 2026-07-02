@@ -50,27 +50,10 @@ class Row:
     def items(self):
         return self._data.items()
 
-class Row(dict):
-    """Dict that also supports index access row[0]."""
-    def __init__(self, keys, values):
-        super().__init__(zip(keys, values))
-        self._idx = list(keys)
-
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            return super().__getitem__(self._idx[key])
-        return super().__getitem__(key)
-
-
 def _pg_connect():
     url = Config.db_url()
     if PG_V3:
-        def row_factory(cursor):
-            cols = [d[0] for d in cursor.description] if cursor.description else []
-            for r in cursor:
-                yield Row(cols, r)
-        conn = psycopg.connect(url, row_factory=row_factory,
-                               prepare_threshold=None)
+        conn = psycopg.connect(url, prepare_threshold=None)
         conn.autocommit = False
         return conn
     else:
