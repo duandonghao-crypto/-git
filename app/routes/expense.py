@@ -2,13 +2,12 @@
 import os, re, shutil, zipfile, tempfile, hashlib
 from datetime import datetime
 from flask import Blueprint, request, jsonify
-import openpyxl, pdfplumber
+import openpyxl
 from config import Config, BASE_DIR
 from app.database import db_session
 from app.routes.auth_helper import user_id, user_name
 from app.utils.helpers import sanitize_filename, decode_filename
 from app.services.email_client import EmailClient
-from app.services.pdf_extractor import PDFExtractor
 from app.services.file_manager import FileManager
 from app.services.excel_handler import ExcelHandler
 
@@ -72,6 +71,7 @@ def expense_download_invoices():
 
 @expense_bp.route('/api/expense_copy_invoices', methods=['POST'])
 def expense_copy_invoices():
+    from app.services.pdf_extractor import PDFExtractor
     data = request.get_json(force=True)
     output_dir = data.get('output_dir', _workspace_dir())
     dl_dir = data.get('downloads_dir') or Config.DOWNLOADS_DIR
@@ -94,6 +94,7 @@ def expense_rename_invoices():
 
 @expense_bp.route('/api/expense_extract', methods=['POST'])
 def expense_extract():
+    from app.services.pdf_extractor import PDFExtractor
     data = request.get_json(force=True)
     output_dir = data.get('output_dir', _workspace_dir())
     mapping_path = data.get('mapping_path', Config.MAPPING_FILE)
@@ -305,6 +306,7 @@ def expense_upload_file():
 
 @expense_bp.route('/api/expense_upload_invoices', methods=['POST'])
 def expense_upload_invoices():
+    from app.services.pdf_extractor import PDFExtractor
     import base64
     data = request.get_json(force=True)
     logs = []
