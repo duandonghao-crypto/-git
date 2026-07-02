@@ -24,19 +24,15 @@ from config import Config
 
 
 def _pg_connect():
-    """Connect to PostgreSQL, returns connection with dict-like rows."""
+    """Connect to PostgreSQL, returns connection with dict rows."""
+    url = Config.db_url()
     if PG_V3:
-        return psycopg.connect(Config.db_url(), row_factory=dict_row)
-    else:
-        conn = psycopg2.connect(Config.db_url(), sslmode='require' if 'neon' in Config.db_url() else 'prefer')
+        conn = psycopg.connect(url, row_factory=psycopg.rows.dict_row)
+        conn.autocommit = False
         return conn
-
-
-def dict_row(cursor):
-    """Row factory for psycopg v3: dict-like rows."""
-    cols = [d[0] for d in cursor.description]
-    for row in cursor:
-        yield dict(zip(cols, row))
+    else:
+        conn = psycopg2.connect(url)
+        return conn
 
 
 def get_db():
