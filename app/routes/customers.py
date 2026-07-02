@@ -17,7 +17,7 @@ def list_customers():
                          COUNT(cm.id) as total_links
                          FROM customers c LEFT JOIN customer_meters cm ON c.id=cm.customer_id
                          WHERE c.user_id=%s
-                         GROUP BY c.id ORDER BY c.name""", (uid,))
+                         GROUP BY c.id, c.name ORDER BY c.name""", (uid,))
             return jsonify([dict(r) for r in c.fetchall()])
     except Exception as e:
         import traceback
