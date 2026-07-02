@@ -27,7 +27,8 @@ def _pg_connect():
     """Connect to PostgreSQL, returns connection with dict rows."""
     url = Config.db_url()
     if PG_V3:
-        conn = psycopg.connect(url, row_factory=psycopg.rows.dict_row)
+        conn = psycopg.connect(url, row_factory=psycopg.rows.dict_row,
+                               prepare_threshold=None)
         conn.autocommit = False
         return conn
     else:
